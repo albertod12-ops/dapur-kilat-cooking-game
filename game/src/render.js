@@ -180,6 +180,8 @@ function drawTicket(ctx, ticket, x, y, w, h) {
   rr(ctx, x, y, w, h, 10); ctx.fill(); ctx.stroke();
   ctx.fillStyle = ticket.customer.color;
   ctx.beginPath(); ctx.arc(x + 24, y + 22, 13, 0, Math.PI * 2); ctx.fill();
+  // The customer's mood follows their patience: happy, worried, furious.
+  text(ctx, frac > 0.6 ? '😊' : frac > 0.35 ? '😐' : '😠', x + 24, y + 22, 15, '#fff', '800', 'center');
   text(ctx, ticket.customer.name.split(' ')[0], x + 42, y + 16, 13, INK);
   text(ctx, ticket.recipe.name, x + 42, y + 34, 13, '#7a5a28', '600');
   // Needed ingredients as mini icons, left to right.
@@ -231,6 +233,14 @@ function drawBurner(ctx, slot, x, y, w, h) {
     ctx.fillStyle = '#55555e';
     ctx.beginPath(); ctx.ellipse(x + w / 2, y + h / 2 + 10, w * 0.34, h * 0.26, 0, 0, Math.PI * 2); ctx.fill();
     drawIngredient(ctx, slot.item, x + w / 2 - 24, y + 16, 48);
+    // Steam rising off the pan.
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    const now = Date.now() / 300;
+    for (let i = 0; i < 3; i += 1) {
+      const sy = y + 26 - ((now + i * 2.1) % 6) * 5;
+      const sx = x + w / 2 - 18 + i * 18 + Math.sin(now + i) * 3;
+      ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI * 2); ctx.fill();
+    }
     // Cook progress: grey -> green perfect zone -> red burn.
     const frac = Math.min(1, t / COOK_BURN_AT);
     const px = x + 14; const pw = w - 28;
@@ -271,6 +281,9 @@ export function createRenderer(canvas) {
     if (state.combo >= 2) {
       text(ctx, `🔥 KOMBO x${state.combo}`, 1150, 30, 22, '#ff8c42', '800', 'center');
       text(ctx, `${Math.ceil(state.comboLeft)} dtk`, 1150, 56, 13, '#f7e3b0', '600', 'center');
+    }
+    if (state.timeLeft <= 30 && !state.over) {
+      text(ctx, '🔥 JAM SIBUK', 640, 70, 13, '#ff8c7a', '800', 'center');
     }
     void screen;
   }
@@ -437,6 +450,7 @@ export function createRenderer(canvas) {
     text(ctx, '🥩 Masak sampai zona hijau = sempurna  •  🔥 Jangan sampai gosong', 640, 362, 16, INK, '600', 'center');
     text(ctx, '🔔 Sajikan cepat = tip besar  •  🔥 Kombo = koin berlipat', 640, 390, 16, INK, '600', 'center');
     text(ctx, `🎯 Target shift: ${TARGET_COINS} koin dalam ${SHIFT_SECONDS} detik`, 640, 428, 17, '#2b7a3a', '800', 'center');
+    text(ctx, '8 resep di menu  •  30 detik terakhir = jam sibuk', 640, 456, 15, INK, '600', 'center');
     if (best > 0) text(ctx, `Rekor koin: ${best}`, 640, 460, 16, INK, '700', 'center');
     ctx.fillStyle = '#e23b2e';
     rr(ctx, 480, 500, 320, 56, 14); ctx.fill();

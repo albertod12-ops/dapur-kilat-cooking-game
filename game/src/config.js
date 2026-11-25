@@ -71,6 +71,14 @@ export const RECIPES = [
     id: 'spaghetti', name: 'Spaghetti Kilat', price: 15, time: 36,
     needs: ['pasta', 'sauce', 'cheese'],
   },
+  {
+    id: 'mie', name: 'Mie Goreng', price: 17, time: 42,
+    needs: ['pasta', 'egg', 'chicken', 'sauce'],
+  },
+  {
+    id: 'geprek', name: 'Ayam Geprek', price: 19, time: 40,
+    needs: ['chicken', 'sauce', 'tomato', 'lettuce'],
+  },
 ];
 
 export const CUSTOMERS = [
@@ -85,3 +93,7 @@ export const CUSTOMERS = [
 /** Combo: serving within this many seconds of the last serve keeps the streak alive. */
 export const COMBO_WINDOW = 12;
 export const TIP_MAX = 8;
+/** The last 30 seconds are rush hour: tickets arrive twice as fast. */
+export const RUSH_SECONDS = 30;
+/** Taking a pan off the stove inside the perfect window pays this bonus at once. */
+export const PERFECT_BONUS = 2;

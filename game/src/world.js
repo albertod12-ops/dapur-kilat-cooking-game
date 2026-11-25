@@ -2,8 +2,8 @@
 // the till. No drawing here — render.js paints this state, input.js calls these actions.
 import {
   BINS, CHOP_CLICKS, COMBO_WINDOW, COOK_BURN_AT, COOK_PERFECT_FROM, COOK_SECONDS,
-  CUSTOMERS, INGREDIENTS, MAX_TICKETS, RECIPES, SHIFT_SECONDS, STOVE_SLOTS,
-  TARGET_COINS, TIP_MAX, VIEW,
+  CUSTOMERS, INGREDIENTS, MAX_TICKETS, PERFECT_BONUS, RECIPES, RUSH_SECONDS,
+  SHIFT_SECONDS, STOVE_SLOTS, TARGET_COINS, TIP_MAX, VIEW,
 } from './config.js';
 
 export const EVENT_SERVED = 1;
@@ -164,7 +164,11 @@ export function createWorld(random) {
       }
       state.hand = current.result;
       state.stove[slot] = null;
-      if (current.t >= COOK_PERFECT_FROM && current.t <= COOK_BURN_AT) return 'perfect';
+      if (current.t >= COOK_PERFECT_FROM && current.t <= COOK_BURN_AT) {
+        state.coins += PERFECT_BONUS;
+        say(`Masakan sempurna! +${PERFECT_BONUS} koin bonus.`);
+        return 'perfect';
+      }
       return 'pick';
     },
 
@@ -245,7 +249,7 @@ export function createWorld(random) {
       if (state.spawnIn <= 0) {
         spawnTicket();
         const rush = 1 - state.timeLeft / SHIFT_SECONDS;
-        state.spawnIn = 9 - rush * 3.5;
+        state.spawnIn = state.timeLeft <= RUSH_SECONDS ? 4.5 : 9 - rush * 3.5;
       }
       if (state.timeLeft <= 0) {
         state.timeLeft = 0;
