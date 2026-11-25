@@ -1,5 +1,10 @@
 // Semua gambar canvas: latar pasar malam, stasiun, koki, pelanggan, HUD,
 // tiket, layar judul + akhir. Satu file, satu job: melukis state G.
+//
+// Layout v4.1 — "line kitchen" ala Copper & Thyme: satu garis counter
+// horizontal; tiket di atas, papan menu + lampu gantung + rak di dinding
+// belakang, stasiun (wok → talenan → piring → pass) di atas counter,
+// bin bahan baris bersih di badan counter, koki berjalan di depan counter.
 import { CHEF_Y, H, LAYOUT, PALETTE, SHIFT_SECONDS, W, WAVES, WIN_TARGET } from './config.js';
 import { INGREDIENTS, INGREDIENT_IDS, RECIPES, formatRp, recipeForPlate } from './recipes.js';
 import { drawIngredient, drawPlate } from './food.js';
@@ -29,57 +34,138 @@ function mmss(sec) {
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
 
-// ---------- latar ----------
+// ---------- latar: langit, dinding belakang, counter, lantai ----------
 function drawBackground(ctx, t) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+  // Langit malam (terlihat di sela tiket + atas).
+  const g = ctx.createLinearGradient(0, 0, 0, 180);
   g.addColorStop(0, PALETTE.skyTop);
-  g.addColorStop(0.45, PALETTE.skyMid);
-  g.addColorStop(1, PALETTE.skyBottom);
+  g.addColorStop(1, PALETTE.skyMid);
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, W, 180);
   // Bintang.
   ctx.fillStyle = '#ffffff';
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 50; i++) {
     const x = (i * 211.7) % W;
-    const y = (i * 97.3) % 150;
+    const y = (i * 97.3) % 160;
     const a = 0.25 + 0.55 * Math.abs(Math.sin(t * 0.7 + i));
     ctx.globalAlpha = a * 0.7;
     ctx.fillRect(x, y, 2, 2);
   }
   ctx.globalAlpha = 1;
-  // Lampu string hangat.
-  ctx.strokeStyle = '#3a2c14';
+  // Dinding belakang warung: kayu hangat, papan horizontal.
+  ctx.fillStyle = PALETTE.wall;
+  ctx.fillRect(0, 176, W, 120);
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
   ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, 62);
-  ctx.quadraticCurveTo(640, 96, 1280, 62);
-  ctx.stroke();
-  for (let i = 0; i < 17; i++) {
-    const x = 20 + i * 74;
-    const y = 62 + Math.sin((x / 1280) * Math.PI) * 30;
-    const glow = 0.75 + 0.25 * Math.sin(t * 2 + i * 1.3);
+  for (let y = 200; y < 296; y += 24) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+  // Cahaya hangat di dinding (di bawah lampu gantung).
+  for (const x of LAYOUT.lamps.xs) {
+    const glow = ctx.createRadialGradient(x, 240, 4, x, 240, 90);
+    glow.addColorStop(0, 'rgba(255,179,71,0.20)');
+    glow.addColorStop(1, 'rgba(255,179,71,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - 90, 150, 180, 146);
+  }
+  // Lampu gantung bulat (pendant) — tali + kap + bohlam menyala.
+  for (const x of LAYOUT.lamps.xs) {
+    ctx.strokeStyle = '#2b1c10';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, LAYOUT.lamps.top);
+    ctx.lineTo(x, 214);
+    ctx.stroke();
+    ctx.fillStyle = '#ff7a2f';
+    ctx.beginPath();
+    ctx.moveTo(x - 20, 214);
+    ctx.lineTo(x + 20, 214);
+    ctx.lineTo(x + 12, 232);
+    ctx.lineTo(x - 12, 232);
+    ctx.closePath();
+    ctx.fill();
+    const pulse = 0.85 + 0.15 * Math.sin(t * 2 + x * 0.01);
     ctx.save();
-    ctx.globalAlpha = glow;
+    ctx.globalAlpha = 0.35 * pulse;
     ctx.fillStyle = PALETTE.amber;
     ctx.beginPath();
-    ctx.arc(x, y + 8, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = glow * 0.25;
-    ctx.beginPath();
-    ctx.arc(x, y + 8, 16, 0, Math.PI * 2);
+    ctx.arc(x, 240, 26, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    ctx.fillStyle = '#ffe9a8';
+    ctx.beginPath();
+    ctx.arc(x, 238, 9, 0, Math.PI * 2);
+    ctx.fill();
   }
-  // Kios kayu di belakang counter.
+  // Rak + toples bumbu (kanan dinding).
+  const S = LAYOUT.shelf;
+  const jarColors = ['#ffb347', '#7dc383', '#e63946', '#2ec4b6', '#7c5cbf', '#d9a441'];
+  for (let i = 0; i < 6; i++) {
+    const jx = S.x + 12 + i * 49;
+    const jh = 30 + ((i * 7) % 3) * 6;
+    const jy = S.y + 46 - jh;
+    ctx.fillStyle = jarColors[i];
+    rr(ctx, jx, jy, 34, jh, 6);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    rr(ctx, jx + 5, jy + 4, 8, jh - 8, 3);
+    ctx.fill();
+    ctx.fillStyle = '#5d3718';
+    ctx.fillRect(jx + 2, jy - 6, 30, 7);
+  }
   ctx.fillStyle = PALETTE.stallWoodDark;
-  ctx.fillRect(0, 300, W, 14);
+  ctx.fillRect(S.x, S.y + 46, S.w, 9);
   ctx.fillStyle = PALETTE.stallWood;
-  ctx.fillRect(0, 314, W, 10);
+  ctx.fillRect(S.x, S.y + 46, S.w, 4);
+  // Counter: permukaan atas kayu + badan depan + lantai.
+  ctx.fillStyle = PALETTE.counterTop;
+  ctx.fillRect(LAYOUT.counterTop.x, LAYOUT.counterTop.y, LAYOUT.counterTop.w, LAYOUT.counterTop.h);
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(0, 296, W, 3);
+  ctx.fillStyle = PALETTE.counterFace;
+  ctx.fillRect(LAYOUT.counterFace.x, LAYOUT.counterFace.y, LAYOUT.counterFace.w, LAYOUT.counterFace.h);
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 2;
+  for (let x = 96; x < W; x += 96) {
+    ctx.beginPath();
+    ctx.moveTo(x, 310);
+    ctx.lineTo(x, 560);
+    ctx.stroke();
+  }
   // Lantai.
   ctx.fillStyle = '#241a33';
-  ctx.fillRect(0, 640, W, 28);
+  ctx.fillRect(0, 560, W, 108);
   ctx.fillStyle = '#2e2140';
-  for (let x = 0; x < W; x += 64) ctx.fillRect(x, 640, 32, 28);
+  for (let x = 0; x < W; x += 64) ctx.fillRect(x, 560, 32, 108);
+  ctx.fillStyle = '#1d1428';
+  for (let x = 32; x < W; x += 64) ctx.fillRect(x, 614, 32, 54);
+}
+
+// ---------- papan menu (dinding belakang, kiri) ----------
+function drawMenuBoard(ctx) {
+  const L = LAYOUT.menuBoard;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  rr(ctx, L.x + 3, L.y + 4, L.w, L.h, 8);
+  ctx.fill();
+  ctx.fillStyle = PALETTE.menuBoard;
+  rr(ctx, L.x, L.y, L.w, L.h, 8);
+  ctx.fill();
+  ctx.strokeStyle = '#8a5a2b';
+  ctx.lineWidth = 4;
+  rr(ctx, L.x, L.y, L.w, L.h, 8);
+  ctx.stroke();
+  text(ctx, 'MENU WARUNG SAJI', L.x + L.w / 2, L.y + 16, 13, '#ffd166', '800', 'center');
+  RECIPES.forEach((r, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = L.x + 14 + col * 168;
+    const y = L.y + 40 + row * 24;
+    text(ctx, r.name, x, y, 12, '#fff3d6', '700');
+    text(ctx, formatRp(r.price), x + 154, y, 11, '#ffd166', '800', 'right');
+  });
 }
 
 // ---------- HUD atas ----------
@@ -89,7 +175,7 @@ function drawTopBar(ctx, G) {
   ctx.fillRect(L.x, L.y, L.w, L.h);
   ctx.fillStyle = PALETTE.amber;
   ctx.fillRect(0, L.h - 3, W, 3);
-  text(ctx, 'PASAR MALAM: WARUNG SAJI', 18, 30, 24, '#ffd166', '800');
+  text(ctx, 'PASAR MALAM: WARUNG SAJI', 18, 28, 24, '#ffd166', '800');
   const right = [
     ['PENDAPATAN', formatRp(G.revenue) + ' / ' + formatRp(WIN_TARGET)],
     ['STREAK', G.streak > 0 ? 'x' + G.streak : '-'],
@@ -97,13 +183,13 @@ function drawTopBar(ctx, G) {
   ];
   let x = 560;
   for (const [label, val] of right) {
-    text(ctx, label, x, 18, 11, '#b9a8d8', '700');
-    text(ctx, val, x, 40, 17, '#fff3d6', '800');
+    text(ctx, label, x, 16, 11, '#b9a8d8', '700');
+    text(ctx, val, x, 38, 17, '#fff3d6', '800');
     x += label === 'PENDAPATAN' ? 250 : 150;
   }
   // Timer shift.
   const frac = G.timeLeft / SHIFT_SECONDS;
-  const bx = 1100, by = 16, bw = 160, bh = 26;
+  const bx = 1100, by = 14, bw = 160, bh = 26;
   ctx.fillStyle = '#3a2c55';
   rr(ctx, bx, by, bw, bh, 6);
   ctx.fill();
@@ -140,16 +226,16 @@ function drawTickets(ctx, G, t) {
       continue;
     }
     const mood = moodOf(tk.patience, tk.maxPatience);
-    drawCustomerFace(ctx, tk.customer, x + 40, y + 46, 30, mood);
-    text(ctx, tk.customer.name, x + 78, y + 16, 12, '#8a7a5c', '700');
-    text(ctx, tk.recipe.name, x + 78, y + 36, 17, PALETTE.ink, '800');
+    drawCustomerFace(ctx, tk.customer, x + 36, y + 42, 26, mood);
+    text(ctx, tk.customer.name, x + 72, y + 13, 11, '#8a7a5c', '700');
+    text(ctx, tk.recipe.name, x + 72, y + 33, 16, PALETTE.ink, '800');
     // Checklist bahan: centang bila sudah ada di salah satu piring.
-    let cx = x + 78;
+    let cx = x + 72;
     for (const step of tk.recipe.steps) {
       const done = G.plates.some((p) => p.items.includes(step.ing));
       ctx.fillStyle = done ? '#2e7d32' : INGREDIENTS[step.ing].base;
       ctx.beginPath();
-      ctx.arc(cx + 9, y + 62, 9, 0, Math.PI * 2);
+      ctx.arc(cx + 8, y + 56, 8, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = '#241a12';
       ctx.lineWidth = 1.5;
@@ -158,29 +244,29 @@ function drawTickets(ctx, G, t) {
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.moveTo(cx + 4, y + 62);
-        ctx.lineTo(cx + 8, y + 66);
-        ctx.lineTo(cx + 14, y + 57);
+        ctx.moveTo(cx + 3, y + 56);
+        ctx.lineTo(cx + 7, y + 60);
+        ctx.lineTo(cx + 13, y + 52);
         ctx.stroke();
       }
-      text(ctx, INGREDIENTS[step.ing].name, cx + 22, y + 62, 11, '#5d4a2a', '600');
-      cx += 22 + INGREDIENTS[step.ing].name.length * 7 + 12;
+      text(ctx, INGREDIENTS[step.ing].name, cx + 20, y + 56, 11, '#5d4a2a', '600');
+      cx += 20 + INGREDIENTS[step.ing].name.length * 6.5 + 12;
     }
     // Bar kesabaran.
     const pf = Math.max(0, tk.patience / tk.maxPatience);
     ctx.fillStyle = '#e5dcc4';
-    rr(ctx, x + 14, y + L.h - 26, L.w - 28, 10, 5);
+    rr(ctx, x + 14, y + L.h - 20, L.w - 28, 9, 4);
     ctx.fill();
     ctx.fillStyle = pf > 0.6 ? '#57b25e' : pf > 0.3 ? '#ffb347' : '#e63946';
-    rr(ctx, x + 14, y + L.h - 26, (L.w - 28) * pf, 10, 5);
+    rr(ctx, x + 14, y + L.h - 20, (L.w - 28) * pf, 9, 4);
     ctx.fill();
-    text(ctx, formatRp(tk.recipe.price), x + L.w - 14, y + L.h - 42, 15, '#b8860b', '800', 'right');
-    text(ctx, Math.ceil(tk.patience) + ' dtk', x + L.w - 14, y + 16, 12, '#8a7a5c', '700', 'right');
+    text(ctx, formatRp(tk.recipe.price), x + L.w - 14, y + L.h - 36, 14, '#b8860b', '800', 'right');
+    text(ctx, Math.ceil(tk.patience) + ' dtk', x + L.w - 14, y + 13, 11, '#8a7a5c', '700', 'right');
     ctx.restore();
   }
 }
 
-// ---------- bin bahan ----------
+// ---------- bin bahan (baris bersih di badan counter) ----------
 function drawBins(ctx, G, t) {
   const L = LAYOUT.bins;
   for (let i = 0; i < INGREDIENT_IDS.length; i++) {
@@ -197,9 +283,9 @@ function drawBins(ctx, G, t) {
     ctx.fillStyle = '#a06a33';
     rr(ctx, x + 4, y + 4, L.w - 8, L.h - 8, 8);
     ctx.fill();
-    drawIngredient(ctx, id, x + 42, y + 40, 26, t);
-    text(ctx, ing.name, x + 76, y + 28, 17, '#fff3d6', '800');
-    text(ctx, ing.station === 'wok' ? '→ WOK' : '→ TALENAN', x + 76, y + 54, 12, '#ffd166', '700');
+    drawIngredient(ctx, id, x + 38, y + 40, 24, t);
+    text(ctx, ing.name, x + 70, y + 30, 16, '#fff3d6', '800');
+    text(ctx, ing.station === 'wok' ? '→ WOK' : '→ TALENAN', x + 70, y + 54, 11, '#ffd166', '700');
     if (G.chef.carrying && G.chef.carrying.ing === id && G.chef.carrying.state === 'raw') {
       ctx.strokeStyle = '#ffd166';
       ctx.lineWidth = 3;
@@ -209,74 +295,91 @@ function drawBins(ctx, G, t) {
   }
 }
 
-// ---------- stasiun ----------
+// ---------- stasiun di atas counter ----------
 function drawWok(ctx, G, t) {
   const L = LAYOUT.wok;
-  // Kompor.
+  const cx = L.x + L.w / 2;
+  // Kompor: badan gelap + kenop.
   ctx.fillStyle = '#2c2438';
-  rr(ctx, L.x, L.y + 90, L.w, 110, 12);
+  rr(ctx, L.x + 8, L.y + 84, L.w - 16, L.h - 84, 10);
   ctx.fill();
   ctx.fillStyle = '#3d3352';
-  rr(ctx, L.x + 8, L.y + 98, L.w - 16, 94, 8);
+  rr(ctx, L.x + 16, L.y + 92, L.w - 32, 72, 8);
   ctx.fill();
-  // Api di bawah wok — dua lapis (oranye luar, kuning dalam), berkedip.
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = '#554a6e';
+    ctx.beginPath();
+    ctx.arc(L.x + 70 + i * 90, L.y + 150, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#dfe6ea';
+    ctx.beginPath();
+    ctx.arc(L.x + 70 + i * 90, L.y + 150, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Api di bawah wok — dua lapis, berkedip. Digambar SETELAH mangkuk
+  // supaya lidah api terlihat menjilat tepi wok, bukan tertutup mangkuk.
   const flick = 0.8 + 0.2 * Math.sin(t * 9);
-  for (let i = 0; i < 5; i++) {
-    const fx = L.x + 60 + i * 45;
-    const a = flick * (0.75 + 0.25 * Math.sin(t * 7 + i * 2));
+  const cy = L.y + 84;
+  // Cahaya api di atas kompor, di bawah mangkuk.
+  const glow = ctx.createRadialGradient(cx, cy + 18, 4, cx, cy + 18, 110);
+  glow.addColorStop(0, 'rgba(255,122,47,0.35)');
+  glow.addColorStop(1, 'rgba(255,122,47,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 18, 110, 24, 0, 0, Math.PI * 2);
+  ctx.fill();
+  for (const fx of [cx - 88, cx, cx + 88]) {
+    const a = flick * 0.9;
     ctx.save();
     ctx.globalAlpha = a;
     ctx.fillStyle = '#ff7a2f';
     ctx.beginPath();
-    ctx.moveTo(fx - 16, L.y + 190);
-    ctx.quadraticCurveTo(fx - 10, L.y + 146, fx, L.y + 152);
-    ctx.quadraticCurveTo(fx + 10, L.y + 146, fx + 16, L.y + 190);
+    ctx.moveTo(fx - 13, cy + 20);
+    ctx.quadraticCurveTo(fx - 8, cy - 44, fx, cy - 52);
+    ctx.quadraticCurveTo(fx + 8, cy - 44, fx + 13, cy + 20);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = '#ffd166';
     ctx.beginPath();
-    ctx.moveTo(fx - 8, L.y + 190);
-    ctx.quadraticCurveTo(fx - 5, L.y + 164, fx, L.y + 168);
-    ctx.quadraticCurveTo(fx + 5, L.y + 164, fx + 8, L.y + 190);
+    ctx.moveTo(fx - 6, cy + 20);
+    ctx.quadraticCurveTo(fx - 4, cy - 30, fx, cy - 34);
+    ctx.quadraticCurveTo(fx + 4, cy - 30, fx + 6, cy + 20);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
   // Wok: mangkuk hitam besar.
-  const cx = L.x + L.w / 2;
-  const cy = L.y + 96;
   ctx.fillStyle = '#1d1826';
   ctx.beginPath();
-  ctx.ellipse(cx, cy, 118, 52, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, 112, 38, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#2e2540';
   ctx.beginPath();
-  ctx.ellipse(cx, cy, 104, 42, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, 98, 30, 0, 0, Math.PI * 2);
   ctx.fill();
   // Isi slot masak.
   G.wok.slots.forEach((slot, i) => {
     if (!slot) return;
-    const sx = cx + (i === 0 ? -42 : 42);
-    const sy = cy - 6;
+    const sx = cx + (i === 0 ? -40 : 40);
+    const sy = cy - 4;
     if (slot.state === 'burnt') {
       ctx.fillStyle = '#241a12';
       ctx.beginPath();
-      ctx.arc(sx, sy, 26, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 24, 0, Math.PI * 2);
       ctx.fill();
-      text(ctx, 'HANGUS', sx, sy - 34, 12, '#ff7a6e', '800', 'center');
+      text(ctx, 'HANGUS', sx, sy - 32, 12, '#ff7a6e', '800', 'center');
     } else {
-      drawIngredient(ctx, slot.ing, sx, sy, 26, t);
-      // Ring progress.
+      drawIngredient(ctx, slot.ing, sx, sy, 24, t);
       const frac = Math.min(1, slot.t / INGREDIENTS[slot.ing].cook);
       ctx.strokeStyle = slot.state === 'done' ? '#ffd166' : '#2ec4b6';
       ctx.lineWidth = 5;
       ctx.beginPath();
-      ctx.arc(sx, sy, 34, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+      ctx.arc(sx, sy, 32, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
       ctx.stroke();
-      if (slot.state === 'done') text(ctx, 'MATANG!', sx, sy - 44, 13, '#ffd166', '800', 'center');
+      if (slot.state === 'done') text(ctx, 'MATANG!', sx, sy - 42, 13, '#ffd166', '800', 'center');
     }
   });
-  text(ctx, 'WOK', cx, L.y + L.h - 8, 14, '#ffd166', '800', 'center');
+  text(ctx, 'WOK', cx, L.y + L.h - 6, 13, '#ffd166', '800', 'center');
 }
 
 function drawBoard(ctx, G, t) {
@@ -291,13 +394,13 @@ function drawBoard(ctx, G, t) {
   ctx.lineWidth = 2;
   for (let i = 1; i < 4; i++) {
     ctx.beginPath();
-    ctx.moveTo(L.x + 10, L.y + i * 44);
-    ctx.lineTo(L.x + L.w - 10, L.y + i * 44);
+    ctx.moveTo(L.x + 10, L.y + i * 40);
+    ctx.lineTo(L.x + L.w - 10, L.y + i * 40);
     ctx.stroke();
   }
   // Pisau.
   ctx.save();
-  ctx.translate(L.x + L.w - 46, L.y + 34);
+  ctx.translate(L.x + L.w - 46, L.y + 28);
   ctx.rotate(0.5 + (G.board.chopping ? Math.sin(t * 14) * 0.25 : 0));
   ctx.fillStyle = '#dfe6ea';
   ctx.fillRect(0, 0, 62, 12);
@@ -305,27 +408,27 @@ function drawBoard(ctx, G, t) {
   ctx.fillRect(-26, 0, 26, 12);
   ctx.restore();
   if (G.board.ing) {
-    drawIngredient(ctx, G.board.ing, L.x + L.w / 2, L.y + 108, 30, t);
+    drawIngredient(ctx, G.board.ing, L.x + L.w / 2, L.y + 88, 28, t);
     const frac = G.board.progress;
     ctx.fillStyle = '#e5dcc4';
-    rr(ctx, L.x + 30, L.y + L.h - 30, L.w - 60, 12, 6);
+    rr(ctx, L.x + 28, L.y + L.h - 30, L.w - 56, 11, 5);
     ctx.fill();
     ctx.fillStyle = '#2ec4b6';
-    rr(ctx, L.x + 30, L.y + L.h - 30, (L.w - 60) * frac, 12, 6);
+    rr(ctx, L.x + 28, L.y + L.h - 30, (L.w - 56) * frac, 11, 5);
     ctx.fill();
     text(ctx, frac >= 1 ? 'SIAP DIAMBIL' : 'Memotong ' + Math.round(frac * 100) + '%', L.x + L.w / 2, L.y + L.h - 52, 13, '#fff3d6', '700', 'center');
   } else {
-    text(ctx, 'TALENAN', L.x + L.w / 2, L.y + 108, 15, '#fff3d6', '800', 'center');
+    text(ctx, 'TALENAN', L.x + L.w / 2, L.y + 88, 15, '#fff3d6', '800', 'center');
   }
-  text(ctx, 'TALENAN', L.x + L.w / 2, L.y + L.h - 8, 14, '#ffd166', '800', 'center');
+  text(ctx, 'TALENAN', L.x + L.w / 2, L.y + L.h - 8, 13, '#ffd166', '800', 'center');
 }
 
 function drawPlatesArea(ctx, G, t) {
   const L = LAYOUT.plates;
-  text(ctx, 'PIRING', L.x + L.w / 2, L.y + 8, 14, '#ffd166', '800', 'center');
+  text(ctx, 'PIRING', L.x + L.w / 2, L.y + 12, 13, '#ffd166', '800', 'center');
   G.plates.forEach((plate, i) => {
     const px = L.x + 66 + i * 128;
-    const py = L.y + 108;
+    const py = L.y + 92;
     const recipe = recipeForPlate(plate.items);
     if (recipe) {
       ctx.save();
@@ -333,13 +436,13 @@ function drawPlatesArea(ctx, G, t) {
       ctx.strokeStyle = '#ffd166';
       ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(px, py, 56, 0, Math.PI * 2);
+      ctx.arc(px, py, 54, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
-      text(ctx, recipe.name + ' SIAP!', px, py - 66, 13, '#ffd166', '800', 'center');
+      text(ctx, recipe.name + ' SIAP!', px, py - 62, 12, '#ffd166', '800', 'center');
     }
-    drawPlate(ctx, px, py, 52, plate.items, t);
-    text(ctx, plate.items.length + '/3', px, py + 40, 12, '#b9a8d8', '700', 'center');
+    drawPlate(ctx, px, py, 50, plate.items, t);
+    text(ctx, plate.items.length + '/3', px, py + 38, 12, '#b9a8d8', '700', 'center');
   });
 }
 
@@ -353,18 +456,18 @@ function drawPass(ctx, G, t) {
   rr(ctx, L.x, L.y, L.w, L.h, 10);
   ctx.fill();
   ctx.fillStyle = '#554a6e';
-  rr(ctx, L.x + 10, L.y + 10, L.w - 20, 90, 8);
+  rr(ctx, L.x + 10, L.y + 10, L.w - 20, 84, 8);
   ctx.fill();
   // Lonceng emas.
   const ready = G.plates.some((p) => recipeForPlate(p.items));
   const bx = L.x + L.w / 2;
-  const by = L.y + 60;
+  const by = L.y + 58;
   if (ready) {
     ctx.save();
     ctx.globalAlpha = 0.4 + 0.3 * Math.sin(t * 5);
     ctx.fillStyle = '#ffd166';
     ctx.beginPath();
-    ctx.arc(bx, by, 44, 0, Math.PI * 2);
+    ctx.arc(bx, by, 42, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -381,11 +484,10 @@ function drawPass(ctx, G, t) {
   ctx.beginPath();
   ctx.arc(bx, by - 24, 5, 0, Math.PI * 2);
   ctx.fill();
-  text(ctx, ready ? 'SAJIKAN! [E]' : 'PASS — SAJIKAN', bx, L.y + 128, ready ? 17 : 14, ready ? '#ffd166' : '#b9a8d8', '800', 'center');
-  text(ctx, 'Serahkan piring lengkap', bx, L.y + 152, 12, '#b9a8d8', '600', 'center');
+  text(ctx, ready ? 'SAJIKAN! [E]' : 'PASS — SAJIKAN', bx, L.y + 124, ready ? 17 : 14, ready ? '#ffd166' : '#b9a8d8', '800', 'center');
   // Piring siap di etalase (gambar kecil bila ada).
   const readyPlate = G.plates.find((p) => recipeForPlate(p.items));
-  if (readyPlate) drawPlate(ctx, bx, L.y + 186, 26, readyPlate.items, t);
+  if (readyPlate) drawPlate(ctx, bx, L.y + 158, 16, readyPlate.items, t);
 }
 
 function drawTrash(ctx, G) {
@@ -394,10 +496,10 @@ function drawTrash(ctx, G) {
   rr(ctx, L.x, L.y, L.w, L.h, 8);
   ctx.fill();
   ctx.fillStyle = '#2c2438';
-  rr(ctx, L.x + 6, L.y - 8, L.w - 12, 12, 4);
+  rr(ctx, L.x + 6, L.y - 6, L.w - 12, 10, 4);
   ctx.fill();
-  text(ctx, 'SAMPAH', L.x + L.w / 2, L.y + L.h / 2 - 6, 11, '#fff3d6', '800', 'center');
-  text(ctx, 'buang', L.x + L.w / 2, L.y + L.h / 2 + 12, 11, '#b9a8d8', '600', 'center');
+  text(ctx, 'SAMPAH', L.x + L.w / 2, L.y + 32, 10, '#fff3d6', '800', 'center');
+  text(ctx, 'buang', L.x + L.w / 2, L.y + 50, 10, '#b9a8d8', '600', 'center');
 }
 
 // ---------- koki ----------
@@ -651,6 +753,7 @@ function drawEnd(ctx, G) {
 // ---------- entry ----------
 export function drawGame(ctx, G, t) {
   drawBackground(ctx, t);
+  drawMenuBoard(ctx);
   drawTopBar(ctx, G);
   drawTickets(ctx, G, t);
   drawBins(ctx, G, t);

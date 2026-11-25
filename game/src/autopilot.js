@@ -86,12 +86,12 @@ export function stageShot(G, kind) {
     G.chef.targetX = G.chef.x;
     G.chef.carrying = null;
     // Koin terbang + pesan bonus, seperti sesaat setelah menyajikan.
-    // Floater di strip kayu di atas panel pass (tidak menutupi lonceng/bin).
+    // Floater di strip atas panel pass (tidak menutupi lonceng/bin).
     for (let i = 0; i < 10; i++) {
-      G.coins.push({ x: 1064 + (G.rng() - 0.5) * 140, y: 500, vx: (G.rng() - 0.5) * 160, vy: -140 - G.rng() * 120, t: 0.2 });
+      G.coins.push({ x: 1052 + (G.rng() - 0.5) * 140, y: 400, vx: (G.rng() - 0.5) * 160, vy: -140 - G.rng() * 120, t: 0.2 });
     }
-    G.floaters.push({ x: 1140, y: 300, text: '+Rp 18.000', color: '#ffd166', t: 0.2 });
-    G.floaters.push({ x: 990, y: 300, text: 'STREAK x3!', color: '#ff7a2f', t: 0.2 });
+    G.floaters.push({ x: 1130, y: 320, text: '+Rp 18.000', color: '#ffd166', t: 0.2 });
+    G.floaters.push({ x: 980, y: 320, text: 'STREAK x3!', color: '#ff7a2f', t: 0.2 });
     return;
   }
   if (kind === 'end') {

@@ -94,7 +94,7 @@ export function doStationAction(G, a) {
     const slots = G.wok.slots;
     if (chef.carrying && chef.carrying.state === 'raw' && INGREDIENTS[chef.carrying.ing].station === 'wok') {
       const free = slots.findIndex((s) => s === null);
-      if (free === -1) { sfxBuzz(); addFloater(G, 186, 300, 'Wok penuh!', '#ff7a6e'); return; }
+      if (free === -1) { sfxBuzz(); addFloater(G, 184, 280, 'Wok penuh!', '#ff7a6e'); return; }
       slots[free] = { ing: chef.carrying.ing, t: 0, state: 'cooking' };
       chef.carrying = null;
       sfxSizzle();
@@ -151,7 +151,7 @@ export function doStationAction(G, a) {
       const r = recipeForPlate(plate.items);
       if (r) {
         G.pass.glow = 3;
-        addFloater(G, 780, 330, r.name + ' SIAP!', '#ffd166');
+        addFloater(G, 764, 320, r.name + ' SIAP!', '#ffd166');
         sfxBell();
       }
       return;
@@ -190,7 +190,7 @@ export function serveAtPass(G) {
     if (!recipe) continue;
     const ti = G.tickets.findIndex((t) => t.recipe.id === recipe.id);
     if (ti === -1) {
-      addFloater(G, 1064, 300, 'Tidak ada yang pesan ' + recipe.name, '#ff7a6e');
+      addFloater(G, 1052, 320, 'Tidak ada yang pesan ' + recipe.name, '#ff7a6e');
       sfxBuzz();
       return;
     }
@@ -204,9 +204,9 @@ export function serveAtPass(G) {
     G.streak++;
     if (G.streak > G.bestStreak) G.bestStreak = G.streak;
     G.pass.flash = 0.5;
-    burstCoins(G, 1064, 500, 10);
-    addFloater(G, 1140, 300, '+' + formatRp(earned) + (mult > 1 ? '  x' + mult.toFixed(2) : ''), '#ffd166');
-    if (G.streak >= 3) addFloater(G, 990, 300, 'STREAK x' + G.streak + '!', '#ff7a2f');
+    burstCoins(G, 1052, 400, 10);
+    addFloater(G, 1130, 320, '+' + formatRp(earned) + (mult > 1 ? '  x' + mult.toFixed(2) : ''), '#ffd166');
+    if (G.streak >= 3) addFloater(G, 980, 320, 'STREAK x' + G.streak + '!', '#ff7a2f');
     sfxCoin();
     return;
   }
@@ -238,7 +238,7 @@ export function updateStations(G, dt) {
       sfxDing();
     } else if (slot.state === 'done' && slot.t >= cook + BURN_AFTER) {
       slot.state = 'burnt';
-      addFloater(G, 186, 300, 'Hangus!', '#ff7a6e');
+      addFloater(G, 184, 280, 'Hangus!', '#ff7a6e');
     }
   }
   // Uap dari wok yang sedang masak.
