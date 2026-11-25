@@ -68,6 +68,7 @@ export function stageShot(name, world) {
   world.reset();
   if (name !== 'play' && name !== 'serve' && name !== 'end') {
     stepFor(world, 5);
+    world.setChef(170);
     return { screen: SCREEN_TITLE, best: 0 };
   }
   if (name === 'play') {
@@ -84,16 +85,22 @@ export function stageShot(name, world) {
       if (raw) world.pickBin(raw);
     }
     stepFor(world, 6);
+    // Koki Budi stands at the stove he just loaded, egg cooking behind him.
+    world.setChef(600);
     return { screen: SCREEN_PLAY, best: 0 };
   }
   if (name === 'serve') {
     const ticket = world.state.tickets[0];
     buildFull(world, ticket);
     stepFor(world, 1.5);
+    // Koki Budi stands beside the bell (not on top of the trash label),
+    // ready to ring it for the finished dish.
+    world.setChef(1000);
     return { screen: SCREEN_PLAY, best: 0 };
   }
   // end: let the autopilot play the whole shift.
   autopilotShift(world);
+  world.setChef(170);
   return { screen: SCREEN_OVER, best: world.state.coins };
 }
 

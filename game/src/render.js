@@ -2,7 +2,7 @@
 // Bright saturated warung: teal wall, golden counter, glossy food with sparkle,
 // and customers you can actually see. Pure canvas drawing, no images, no network.
 import {
-  BINS, CHOP_CLICKS, COOK_BURN_AT, COOK_PERFECT_FROM, COOK_SECONDS,
+  BINS, CHEF_Y, CHOP_CLICKS, COOK_BURN_AT, COOK_PERFECT_FROM, COOK_SECONDS,
   INGREDIENTS, SHIFT_SECONDS, TARGET_COINS, VIEW,
 } from './config.js';
 import { LAYOUT } from './world.js';
@@ -496,6 +496,84 @@ function drawBurner(ctx, slot, x, y, w, h, t) {
   ctx.restore();
 }
 
+/**
+ * Koki Budi — the visible cook. An original Indonesian chef: tall white toque
+ * with a red band, warm brown skin, black moustache, white shirt, red apron.
+ * He walks the floor in front of the counter (feet at CHEF_Y), legs and arms
+ * swinging with `chef.phase` while he moves, body bobbing and leaning into
+ * the walk. Drawn with paths, never emoji, so he stays crisp when shrunk.
+ */
+function drawChef(ctx, chef, t) {
+  const x = chef.x;
+  const feetY = CHEF_Y;
+  const moving = chef.moving;
+  const dir = Math.max(-1, Math.min(1, (chef.targetX - chef.x) / 40));
+  const lean = moving ? dir * 3 : 0;
+  const bob = moving ? Math.abs(Math.sin(chef.phase)) * 2.5 : Math.sin(t * 2) * 1;
+  const swing = moving ? Math.sin(chef.phase) * 6 : 0;
+  const hipY = feetY - 24 - bob;
+  const shoulderY = feetY - 42 - bob;
+  const headY = feetY - 50 - bob;
+  const headR = 11;
+  ctx.save();
+  // Warm halo so the chef reads against dark stations (stove, bins).
+  const halo = ctx.createRadialGradient(x, feetY - 34, 4, x, feetY - 34, 52);
+  halo.addColorStop(0, 'rgba(255,220,140,0.28)');
+  halo.addColorStop(1, 'rgba(255,220,140,0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(x - 52, feetY - 86, 104, 104);
+  // Soft shadow on the floor.
+  ctx.fillStyle = 'rgba(40,20,5,0.3)';
+  ctx.beginPath(); ctx.ellipse(x, feetY + 2, 24, 5, 0, 0, Math.PI * 2); ctx.fill();
+  // Legs: dark trousers, alternating with the walk cycle.
+  ctx.fillStyle = '#2e2a33';
+  ctx.beginPath(); ctx.ellipse(x - 7 + swing, feetY - 11, 5, 12, 0.12, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 7 - swing, feetY - 11, 5, 12, -0.12, 0, Math.PI * 2); ctx.fill();
+  // Shoes.
+  ctx.fillStyle = '#1d1a20';
+  ctx.beginPath(); ctx.ellipse(x - 7 + swing, feetY - 2, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 7 - swing, feetY - 2, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  // Body: white shirt, red apron with a little flame badge.
+  ctx.fillStyle = '#fdf6e3';
+  rr(ctx, x - 14 + lean, shoulderY - 2, 28, 22, 8); ctx.fill();
+  ctx.fillStyle = '#c22e1f';
+  rr(ctx, x - 10 + lean, shoulderY + 4, 20, 17, 5); ctx.fill();
+  ctx.fillStyle = '#ffd94d';
+  ctx.beginPath(); ctx.arc(x + lean, shoulderY + 12, 4, 0, Math.PI * 2); ctx.fill();
+  // Arms swinging opposite the legs.
+  ctx.strokeStyle = '#f2c29a'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x - 12 + lean, shoulderY + 2);
+  ctx.lineTo(x - 17 + lean - swing * 0.7, shoulderY + 14);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 12 + lean, shoulderY + 2);
+  ctx.lineTo(x + 17 + lean + swing * 0.7, shoulderY + 14);
+  ctx.stroke();
+  // Head.
+  ctx.fillStyle = '#c98d5f';
+  ctx.beginPath(); ctx.arc(x + lean, headY, headR, 0, Math.PI * 2); ctx.fill();
+  // Eyes + smile + moustache.
+  ctx.fillStyle = '#2b1d12';
+  ctx.beginPath(); ctx.arc(x + lean - 4, headY - 1, 1.6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + lean + 4, headY - 1, 1.6, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#2b1d12'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(x + lean, headY + 2, 4, Math.PI * 0.15, Math.PI * 0.85); ctx.stroke();
+  ctx.fillStyle = '#2b1d12';
+  ctx.beginPath(); ctx.ellipse(x + lean, headY + 4.5, 5.5, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+  // Tall white toque with a red band.
+  ctx.fillStyle = '#fffdf6';
+  ctx.beginPath();
+  ctx.moveTo(x + lean - 10, headY - headR + 2);
+  ctx.quadraticCurveTo(x + lean - 12, headY - headR - 12, x + lean - 5, headY - headR - 13);
+  ctx.quadraticCurveTo(x + lean, headY - headR - 18, x + lean + 5, headY - headR - 13);
+  ctx.quadraticCurveTo(x + lean + 12, headY - headR - 12, x + lean + 10, headY - headR + 2);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#c22e1f';
+  ctx.fillRect(x + lean - 10, headY - headR + 1, 20, 4);
+  ctx.restore();
+}
+
 export function createRenderer(canvas) {
   canvas.width = VIEW.width;
   canvas.height = VIEW.height;
@@ -655,6 +733,16 @@ export function createRenderer(canvas) {
         drawIngredient(ctx, id, plate.x + plate.w / 2 - size / 2, y - size / 2, size, t);
       });
       text(ctx, `${state.plate.length} bahan di piring`, plate.x + plate.w / 2, plate.y + plate.h - 14, 12, '#7a5a28', '700', 'center');
+      // Steam off a hot dish: a cooked item is still warm on the plate.
+      const HOT = new Set(['patty', 'egg', 'rice', 'chicken', 'pasta']);
+      if (state.plate.some((id) => HOT.has(id))) {
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        for (let i = 0; i < 3; i += 1) {
+          const sy = plate.y + 44 - (((t * 1.2) + i * 2.3) % 6) * 5;
+          const sx = plate.x + plate.w / 2 - 20 + i * 20 + Math.sin(t * 2 + i * 2) * 3;
+          ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
     }
     // Bell + trash.
     const bell = LAYOUT.bell;
@@ -704,7 +792,7 @@ export function createRenderer(canvas) {
   }
 
   function drawBottom(state) {
-    text(ctx, 'Cara main: ambil bahan → potong di talenan / masak di kompor → susun di piring → bunyikan lonceng.  [P] jeda  [M] suara  [R] ulang', 24, 648, 14, '#ffe9b0', '600');
+    text(ctx, 'Cara main: ambil bahan → potong di talenan / masak di kompor → susun di piring → bunyikan lonceng.  [A/D] jalan  [P] jeda  [M] suara  [R] ulang', 24, 648, 14, '#ffe9b0', '600');
     text(ctx, `Shift ${Math.floor(state.elapsed / 60)}:${String(Math.floor(state.elapsed % 60)).padStart(2, '0')}  •  Target ${TARGET_COINS} koin`, 1256, 648, 14, '#ffe9b0', '600', 'right');
     if (state.message && state.messageT > 0) {
       ctx.fillStyle = 'rgba(43,29,18,0.88)';
@@ -713,7 +801,7 @@ export function createRenderer(canvas) {
     }
   }
 
-  function drawKitchen(state, t) {
+  function drawKitchen(state, t, showChef = true) {
     // Saturated teal wall with a faint tile grid, warm terracotta floor.
     ctx.fillStyle = lg(ctx, 0, 0, VIEW.width, 620, '#2a9d8f', TEAL_DARK);
     ctx.fillRect(0, 0, VIEW.width, 620);
@@ -730,45 +818,65 @@ export function createRenderer(canvas) {
     for (let x = 0; x < VIEW.width; x += 96) ctx.fillRect(x, 660, 2, 60);
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.fillRect(0, 616, VIEW.width, 4);
+    // Warm hanging-lamp pools: the kitchen glows amber over the teal wall.
+    for (const lx of [320, 960]) {
+      const glow = ctx.createRadialGradient(lx, 150, 10, lx, 150, 300);
+      glow.addColorStop(0, 'rgba(255,205,110,0.16)');
+      glow.addColorStop(1, 'rgba(255,205,110,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(lx - 300, 80, 600, 420);
+    }
+    const floorGlow = ctx.createRadialGradient(640, 670, 20, 640, 670, 520);
+    floorGlow.addColorStop(0, 'rgba(255,205,110,0.14)');
+    floorGlow.addColorStop(1, 'rgba(255,205,110,0)');
+    ctx.fillStyle = floorGlow;
+    ctx.fillRect(120, 620, 1040, 100);
     drawTopBar(state);
     drawBoard(state, t);
     drawBins(state, t);
     drawWork(state, t);
+    // Koki Budi walks the floor in front of the counter, on top of the stations.
+    if (showChef) drawChef(ctx, state.chef, t);
     drawBottom(state);
   }
 
   function drawTitle(state, best, t) {
-    drawKitchen(state, t);
+    drawKitchen(state, t, false);
     ctx.fillStyle = 'rgba(20,40,45,0.72)';
     ctx.fillRect(0, 0, VIEW.width, VIEW.height);
     ctx.fillStyle = CREAM;
-    rr(ctx, 290, 110, 700, 500, 20); ctx.fill();
+    rr(ctx, 290, 100, 700, 520, 20); ctx.fill();
     ctx.strokeStyle = '#ff8c42'; ctx.lineWidth = 4; ctx.stroke();
     // A big glossy burger stacked from the game's own ingredients.
-    const bx = 640; const by = 250;
+    const bx = 640; const by = 235;
     foodShadow(ctx, bx, by + 78, 120, 18, 0.25);
-    drawIngredient(ctx, 'bunBottom', bx - 70, by + 30, 140, t);
-    drawIngredient(ctx, 'patty', bx - 70, by - 6, 140, t);
-    drawIngredient(ctx, 'lettuce', bx - 70, by - 34, 140, t);
-    drawIngredient(ctx, 'tomato', bx - 70, by - 62, 140, t);
-    drawIngredient(ctx, 'bunTop', bx - 70, by - 104, 140, t);
+    drawIngredient(ctx, 'bunBottom', bx - 70, by + 30, 130, t);
+    drawIngredient(ctx, 'patty', bx - 70, by - 6, 130, t);
+    drawIngredient(ctx, 'lettuce', bx - 70, by - 34, 130, t);
+    drawIngredient(ctx, 'tomato', bx - 70, by - 62, 130, t);
+    drawIngredient(ctx, 'bunTop', bx - 70, by - 104, 130, t);
     sparkle(ctx, bx - 90, by - 110, 8, t);
     sparkle(ctx, bx + 95, by - 60, 7, t + 1);
     sparkle(ctx, bx + 85, by + 40, 6, t + 2);
-    text(ctx, '🍳 DAPUR KILAT', 640, 170, 52, '#c0392b', '800', 'center');
-    text(ctx, 'Sizzle & Serve', 640, 386, 26, '#7a5a28', '700', 'center');
-    text(ctx, 'Shift masak paling sibuk di kota! Pesanan datang terus —', 640, 424, 17, INK, '600', 'center');
-    text(ctx, 'potong, masak, susun, sajikan sebelum pelanggan pergi.', 640, 450, 17, INK, '600', 'center');
-    text(ctx, `🎯 Target shift: ${TARGET_COINS} koin dalam ${SHIFT_SECONDS} detik  •  8 resep di menu`, 640, 486, 16, '#1e7a34', '800', 'center');
-    if (best > 0) text(ctx, `Rekor koin: ${best}`, 640, 512, 16, INK, '700', 'center');
+    text(ctx, '🍳 DAPUR KILAT', 640, 158, 52, '#c0392b', '800', 'center');
+    text(ctx, 'Sizzle & Serve', 640, 372, 26, '#7a5a28', '700', 'center');
+    text(ctx, 'Shift masak paling sibuk di kota! Pesanan datang terus —', 640, 406, 17, INK, '600', 'center');
+    text(ctx, 'potong, masak, susun, sajikan sebelum pelanggan pergi.', 640, 430, 17, INK, '600', 'center');
+    // The whole menu, so the depth (8 recipes) reads at a glance.
+    text(ctx, '📖 MENU — 8 resep:', 640, 456, 14, '#1e7a34', '800', 'center');
+    text(ctx, 'Burger Kilat Rp14k  •  Burger Keju Rp18k  •  Salad Segar Rp10k  •  Omelet Rp12k', 640, 476, 13, INK, '600', 'center');
+    text(ctx, 'Nasi Goreng Rp16k  •  Spaghetti Rp15k  •  Mie Goreng Rp17k  •  Ayam Geprek Rp19k', 640, 496, 13, INK, '600', 'center');
+    text(ctx, `🎯 Target shift: ${TARGET_COINS} koin dalam ${SHIFT_SECONDS} detik${best > 0 ? `   •   Rekor: ${best} koin` : ''}`, 640, 520, 16, '#1e7a34', '800', 'center');
     ctx.fillStyle = RED;
-    rr(ctx, 480, 530, 320, 56, 14); ctx.fill();
-    text(ctx, '▶  MULAI MASAK', 640, 558, 22, '#fff', '800', 'center');
-    text(ctx, 'Klik di mana saja / tekan Spasi — mouse + keyboard (1–0, C, Q/W, E, T)', 640, 596, 13, '#7a5a28', '600', 'center');
+    rr(ctx, 480, 548, 320, 44, 14); ctx.fill();
+    text(ctx, '▶  MULAI MASAK', 640, 570, 22, '#fff', '800', 'center');
+    text(ctx, 'Klik di mana saja / tekan Spasi — mouse + keyboard (1–0, C, Q/W, E, T, A/D jalan)', 640, 610, 13, '#7a5a28', '600', 'center');
+    // Koki Budi stands beside the title card, bright against the dimmed kitchen.
+    drawChef(ctx, { x: 170, targetX: 170, moving: false, phase: 0 }, t);
   }
 
   function drawPaused(state, t) {
-    drawKitchen(state, t);
+    drawKitchen(state, t, false);
     ctx.fillStyle = 'rgba(20,40,45,0.6)';
     ctx.fillRect(0, 0, VIEW.width, VIEW.height);
     text(ctx, '⏸ JEDA', 640, 330, 54, '#fff', '800', 'center');
@@ -776,7 +884,7 @@ export function createRenderer(canvas) {
   }
 
   function drawOver(state, best, t) {
-    drawKitchen(state, t);
+    drawKitchen(state, t, false);
     ctx.fillStyle = 'rgba(20,40,45,0.72)';
     ctx.fillRect(0, 0, VIEW.width, VIEW.height);
     ctx.fillStyle = CREAM;
@@ -791,6 +899,7 @@ export function createRenderer(canvas) {
     rr(ctx, 480, 430, 320, 56, 14); ctx.fill();
     text(ctx, '↻  MASAK LAGI [R]', 640, 458, 22, '#fff', '800', 'center');
     text(ctx, 'Klik di mana saja / tekan R untuk shift baru', 640, 540, 14, '#7a5a28', '600', 'center');
+    drawChef(ctx, { x: 170, targetX: 170, moving: false, phase: 0 }, t);
   }
 
   return {

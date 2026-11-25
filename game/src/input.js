@@ -41,6 +41,11 @@ export function createInput(canvas, world, hooks) {
       }
       return 'bad';
     }
+    // Click-to-move: tap the floor in front of the counter and the chef walks there.
+    if (y > 615) {
+      world.moveChefTo(x);
+      return 'none';
+    }
     void st;
     return 'none';
   }
@@ -57,6 +62,17 @@ export function createInput(canvas, world, hooks) {
     if (key === 'm') { hooks.onAction(ACTION_MUTE); return; }
     if (key === 'r') { hooks.onAction(ACTION_RESTART); return; }
     if (key === ' ' || key === 'enter') { hooks.onAction(ACTION_CONFIRM); return; }
+    // Walk the chef with A/D or the arrow keys (W stays the stove shortcut).
+    if (key === 'a' || key === 'arrowleft') {
+      world.moveChefTo(world.state.chef.targetX - 90);
+      hooks.onAction('none');
+      return;
+    }
+    if (key === 'd' || key === 'arrowright') {
+      world.moveChefTo(world.state.chef.targetX + 90);
+      hooks.onAction('none');
+      return;
+    }
     if (key === 'e') { hooks.onAction(world.clickBell()); return; }
     if (key === 't') { hooks.onAction(world.clickTrash()); return; }
     if (key === 'q') { hooks.onAction(world.clickStove(0)); return; }

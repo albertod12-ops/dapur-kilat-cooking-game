@@ -95,5 +95,11 @@ export const COMBO_WINDOW = 12;
 export const TIP_MAX = 8;
 /** The last 30 seconds are rush hour: tickets arrive twice as fast. */
 export const RUSH_SECONDS = 30;
+/** The chef: a visible cook who walks the floor in front of the counter. */
+export const CHEF_Y = 640; // feet on the floor, in front of the work counter
+export const CHEF_SPEED = 420; // px per second
+export const CHEF_MIN_X = 48;
+export const CHEF_MAX_X = 1232;
+
 /** Taking a pan off the stove inside the perfect window pays this bonus at once. */
 export const PERFECT_BONUS = 2;

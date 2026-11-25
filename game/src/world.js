@@ -1,7 +1,7 @@
 // The kitchen itself: orders, the hand, the chopping board, the stove, the plate,
 // the till. No drawing here — render.js paints this state, input.js calls these actions.
 import {
-  BINS, CHOP_CLICKS, COMBO_WINDOW, COOK_BURN_AT, COOK_PERFECT_FROM, COOK_SECONDS,
+  BINS, CHEF_MAX_X, CHEF_MIN_X, CHEF_SPEED, CHEF_Y, CHOP_CLICKS, COMBO_WINDOW, COOK_BURN_AT, COOK_PERFECT_FROM, COOK_SECONDS,
   CUSTOMERS, INGREDIENTS, MAX_TICKETS, PERFECT_BONUS, RECIPES, RUSH_SECONDS,
   SHIFT_SECONDS, STOVE_SLOTS, TARGET_COINS, TIP_MAX, VIEW,
 } from './config.js';
@@ -25,6 +25,22 @@ export const LAYOUT = {
   trash: { x: 1020, y: 496, w: 116, h: 92 },
   hand: { x: 1152, y: 386, w: 104, h: 202 },
 };
+
+/** Floor x the chef stands at to work a station (or pick a bin). */
+export function chefSpot(kind, arg = 0) {
+  switch (kind) {
+    case 'chop': return 198;
+    case 'stove': return arg === 0 ? 446 : 600;
+    case 'plate': return 846;
+    case 'bell': return 1000; // beside the bell, not on top of the trash label
+    case 'trash': return 1078;
+    case 'bin': {
+      const i = Math.max(0, Math.min(BINS.length - 1, arg));
+      return LAYOUT.bins.x + i * (LAYOUT.bins.cell + LAYOUT.bins.gap) + LAYOUT.bins.cell / 2;
+    }
+    default: return 640;
+  }
+}
 
 export function cookedOf(rawId) {
   const map = {
@@ -74,6 +90,9 @@ export function createWorld(random) {
     flash: null,
     message: null,
     messageT: 0,
+    // Koki Budi: the visible cook. He walks the floor in front of the counter
+    // to whatever the player is doing, so the route through the kitchen is real.
+    chef: { x: 640, targetX: 640, moving: false, phase: 0 },
   };
 
   function spawnTicket() {
@@ -95,6 +114,19 @@ export function createWorld(random) {
 
   const world = {
     state,
+
+    /** Walk the chef toward x (clamped to the floor). */
+    moveChefTo(x) {
+      state.chef.targetX = Math.max(CHEF_MIN_X, Math.min(CHEF_MAX_X, x));
+    },
+
+    /** Put the chef somewhere at once (screenshot staging). */
+    setChef(x) {
+      state.chef.x = Math.max(CHEF_MIN_X, Math.min(CHEF_MAX_X, x));
+      state.chef.targetX = state.chef.x;
+      state.chef.moving = false;
+    },
+
     reset() {
       state.timeLeft = SHIFT_SECONDS;
       state.coins = 0;
@@ -112,6 +144,7 @@ export function createWorld(random) {
       state.spawnIn = 1.5;
       state.elapsed = 0;
       state.message = null;
+      state.chef = { x: 640, targetX: 640, moving: false, phase: 0 };
       spawnTicket();
       spawnTicket();
     },
@@ -120,11 +153,13 @@ export function createWorld(random) {
       if (state.hand !== null || state.over) return 'busy';
       if (!BINS.includes(id)) return 'bad';
       state.hand = id;
+      world.moveChefTo(chefSpot('bin', BINS.indexOf(id)));
       return 'pick';
     },
 
     clickBoard() {
       if (state.over) return 'bad';
+      world.moveChefTo(chefSpot('chop'));
       if (state.board === null) {
         if (state.hand === null) return 'bad';
         const chopped = choppedOf(state.hand);
@@ -144,6 +179,7 @@ export function createWorld(random) {
 
     clickStove(slot) {
       if (state.over) return 'bad';
+      world.moveChefTo(chefSpot('stove', slot));
       const current = state.stove[slot];
       if (current === null) {
         if (state.hand === null) return 'bad';
@@ -174,6 +210,7 @@ export function createWorld(random) {
 
     clickPlate() {
       if (state.over) return 'bad';
+      world.moveChefTo(chefSpot('plate'));
       if (state.hand === null) return 'bad';
       const ing = INGREDIENTS[state.hand];
       if (!ing || ing.prep !== 'none') return 'bad';
@@ -185,6 +222,7 @@ export function createWorld(random) {
 
     clickTrash() {
       if (state.over) return 'bad';
+      world.moveChefTo(chefSpot('trash'));
       if (state.hand !== null) {
         state.hand = null;
         return 'trash';
@@ -198,6 +236,7 @@ export function createWorld(random) {
 
     clickBell() {
       if (state.over) return 'bad';
+      world.moveChefTo(chefSpot('bell'));
       if (state.plate.length === 0) return 'bad';
       const index = state.tickets.findIndex((t) => sameDish(state.plate, t.recipe.needs));
       if (index === -1) return 'bad';
@@ -220,6 +259,20 @@ export function createWorld(random) {
       let events = 0;
       if (state.over) return events;
       state.elapsed += dt;
+      // The chef walks toward his target spot.
+      {
+        const chef = state.chef;
+        const dx = chef.targetX - chef.x;
+        if (Math.abs(dx) > 2) {
+          const stepPx = CHEF_SPEED * dt;
+          chef.x += Math.max(-stepPx, Math.min(stepPx, dx));
+          chef.moving = true;
+          chef.phase += dt * 11;
+        } else {
+          chef.x = chef.targetX;
+          chef.moving = false;
+        }
+      }
       state.timeLeft -= dt;
       if (state.messageT > 0) state.messageT -= dt;
       if (state.comboLeft > 0) {
