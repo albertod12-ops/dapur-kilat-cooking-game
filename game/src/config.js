@@ -1,6 +1,6 @@
-// Pasar Malam: Warung Saji — konstanta permainan dan tata letak dapur.
-// Canvas 1280x720. Dapur side-view: satu garis counter horizontal, koki
-// berjalan kiri-kanan di depannya, bin bahan di baris bawah.
+// Night Market: Warung Saji — game constants and kitchen layout.
+// Canvas 1280x720. Side-view kitchen: one horizontal counter line, the chef
+// walks left-right in front of it, ingredient bins in a clean row below.
 export const W = 1280;
 export const H = 720;
 
@@ -10,9 +10,9 @@ export const COOK_TIME = 3.0;
 export const CHOP_TIME = 2.0;
 export const BURN_GRACE = 9.0;
 export const WALK_SPEED = 520;
-export const WAVE_TARGETS = [45000, 90000, 150000];
-export const WIN_TARGET = 150000;
-export const STAR_MARKS = [150000, 200000, 260000];
+export const WAVE_TARGETS = [45, 90, 150];
+export const WIN_TARGET = 150;
+export const STAR_MARKS = [150, 200, 260];
 export const MAX_TICKETS = 4;
 export const SPAWN_EVERY = [14, 10, 7];
 export const PATIENCE = [55, 45, 38];
@@ -68,10 +68,10 @@ export function waveFor(revenue) {
   return 1;
 }
 
-export const WAVE_NAMES = { 1: 'MULAI', 2: 'JAM RAMAI', 3: 'PUNCAK' };
+export const WAVE_NAMES = { 1: 'OPENING', 2: 'DINNER RUSH', 3: 'PEAK HOUR' };
 
-export function fmtRp(n) {
-  return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+export function fmtMoney(n) {
+  return '$' + Math.round(n);
 }
 
 export function fmtClock(sec) {

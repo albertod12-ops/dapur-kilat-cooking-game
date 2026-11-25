@@ -1,10 +1,10 @@
-// Pasar Malam: Warung Saji — entry (Node 22, stdlib saja).
-// Game-nya file statis di game/ (index.html + modul ES, tanpa library,
-// tanpa network). Program ini menyalin game/ + screenshots/ ke /output
-// lalu menulis /output/dossier.json dengan library make.fun yang divendor.
+// Night Market: Warung Saji — entry (Node 22, stdlib only).
+// The game is static files under game/ (index.html + ES modules, no library,
+// no network). This program copies game/ + screenshots/ to /output
+// and writes /output/dossier.json with make.fun's vendored library.
 //
-// Main lokal: `node serve.ts`, buka http://localhost:8080.
-// Di luar container grader, MAKEFUN_OUTPUT_DIR menggantikan /output:
+// Run locally: `node serve.ts`, open http://localhost:8080.
+// Outside the grader container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';

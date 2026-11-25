@@ -1,6 +1,6 @@
-// State game: satu objek G yang dibawa ke mana-mana.
-// Fase: 'title' (layar judul), 'play', 'won', 'lost'.
-// Pesanan, gelombang, skor, streak, timer — semua di sini.
+// Game state: one object G carried everywhere.
+// Phases: 'title', 'play', 'won', 'lost'.
+// Orders, waves, score, streak, timer — all here.
 import {
   MAX_TICKETS, PATIENCE, SHIFT_SECONDS, SPAWN_EVERY, STAR_MARKS,
   WAVE_NAMES, WAVE_TARGETS, WIN_TARGET, waveFor,
@@ -86,17 +86,17 @@ export function startShift(G) {
   G.floaters = [];
   G.coins = [];
   G.steam = [];
-  showBanner(G, 'GELOMBANG 1 — MULAI', 'Layani pelanggan, capai Rp 45.000');
+  showBanner(G, 'WAVE 1 — OPENING', 'Serve customers, reach $45');
   spawnTicket(G);
   spawnTicket(G);
 }
 
-export function showBanner(G, text, sub) {
-  G.banner = { text, sub: sub || '', t: 0, dur: 2.6 };
+export function showBanner(G, text, sub, big) {
+  G.banner = { text, sub: sub || '', t: 0, dur: 2.6, big: !!big };
 }
 
-export function addFloater(G, x, y, text, color) {
-  G.floaters.push({ x, y, text, color: color || '#ffd166', t: 0 });
+export function addFloater(G, x, y, text, color, big) {
+  G.floaters.push({ x, y, text, color: color || '#ffd166', t: 0, big: !!big });
 }
 
 export function burstCoins(G, x, y, n) {
@@ -119,13 +119,13 @@ export function updateClocks(G, dt) {
   const w = waveFor(G.revenue);
   if (w !== G.wave) {
     G.wave = w;
-    showBanner(
-      G,
-      'GELOMBANG ' + w + ' — ' + WAVE_NAMES[w],
-      w < 3
-        ? 'Target Rp ' + WAVE_TARGETS[w - 1].toLocaleString('id-ID') + ' · pesanan makin cepat!'
-        : 'Target akhir Rp 150.000 — puncak keramaian!',
-    );
+    if (w === 2) {
+      showBanner(G, 'DINNER RUSH!', 'Orders are coming faster — target $90!', true);
+    } else if (w === 3) {
+      showBanner(G, 'PEAK HOUR!', 'Final target $150 — the crowd is at its peak!', true);
+    } else {
+      showBanner(G, 'WAVE ' + w + ' — ' + WAVE_NAMES[w], '');
+    }
   }
   G.spawnTimer -= dt;
   if (G.spawnTimer <= 0) {
@@ -139,7 +139,7 @@ export function updateClocks(G, dt) {
       G.tickets.splice(i, 1);
       G.lost++;
       G.streak = 0;
-      addFloater(G, 640, 310, 'Pelanggan pergi!', '#ff7a6e');
+      addFloater(G, 640, 310, 'Customer left!', '#ff7a6e');
     }
   }
   if (G.banner) {
@@ -182,10 +182,10 @@ export function endShift(G) {
   G.over = { won, stars, revenue: G.revenue, served: G.served, burnt: G.burnt, lost: G.lost, bestStreak: G.bestStreak };
 }
 
-// Label bahan yang dibawa koki (untuk indikator MEMBAWA).
+// Label for the ingredient the chef is carrying (CARRYING indicator).
 export function carryLabel(G) {
   const h = G.chef.hand;
   if (!h) return null;
-  const names = { nasi: 'Nasi', mie: 'Mie', ayam: 'Ayam', telur: 'Telur', cabai: 'Cabai', sayur: 'Sayur' };
+  const names = { nasi: 'Rice', mie: 'Noodles', ayam: 'Chicken', telur: 'Egg', cabai: 'Chili', sayur: 'Greens' };
   return names[h.ing] || h.ing;
 }

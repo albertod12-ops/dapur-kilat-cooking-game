@@ -1,16 +1,18 @@
-# Pasar Malam: Warung Saji
+# Night Market: Warung Saji
 
 [![make.fun · best-cooking-game-20261125-0137](https://make.fun/badge/best-cooking-game-20261125-0137.svg)](https://make.fun/bounty/best-cooking-game-20261125-0137?utm_source=github&utm_medium=readme&utm_campaign=best-cooking-game-20261125-0137)
 [![rank](https://make.fun/badge/best-cooking-game-20261125-0137/albertod12-ops/dapur-kilat-cooking-game/rank.svg)](https://make.fun/bounty/best-cooking-game-20261125-0137/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=best-cooking-game-20261125-0137)
 [![reward](https://make.fun/badge/best-cooking-game-20261125-0137/albertod12-ops/dapur-kilat-cooking-game/reward.svg)](https://make.fun/bounty/best-cooking-game-20261125-0137?utm_source=github&utm_medium=readme&utm_campaign=best-cooking-game-20261125-0137)
 
-Pasar Malam: Warung Saji — game memasak cepat di warung pasar malam Indonesia. Dapur "line kitchen": satu garis counter — papan menu di dinding belakang, lampu gantung dan rak bumbu di atas counter, wok, talenan, piring dan lonceng PASS tersusun sepanjang counter, bin bahan baris bersih di bawah. Pesanan masuk di papan tiket: ambil bahan dari bin, masak di wok berapi (jangan sampai hangus), potong di talenan, susun di piring, lalu bunyikan lonceng dan sajikan sebelum pelanggan pergi. Koki Budi berjalan keliling dapur (WASD atau klik), 6 resep Indonesia (Nasi Goreng, Mie Goreng, Ayam Geprek, Nasi Ayam, Mie Ayam, Omelet Sayur), 3 gelombang makin ramai (MULAI → JAM RAMAI → PUNCAK), streak/kombo sampai x2, dan target pendapatan Rp 150.000 dalam shift 3:00. Makanan digambar mengkilap dengan gradient dan sparkle, pelanggan berwajah dengan mood yang berubahตาม kesabaran, suara disintesis WebAudio — semua orisinil, tanpa aset salinan. Keyboard + mouse, offline, tanpa build step.
+Night Market: Warung Saji — a fast cooking game at an Indonesian night-market stall. A "line kitchen": one counter line — menu board on the back wall, hanging lamps and a spice shelf above the counter, wok, chopping board, plate and the PASS bell laid out along the counter, a clean row of ingredient bins below. Orders come in on the ticket board: grab ingredients from the bins, cook in the flaming wok (don't let it burn), chop on the board, build on the plate, then ring the bell and serve before customers walk away. Chef Budi walks the kitchen (WASD or click), 6 Indonesian dishes (Nasi Goreng, Mie Goreng, Ayam Geprek, Nasi Ayam, Mie Ayam, Vegetable Omelet), 3 waves that get busier (OPENING → DINNER RUSH → PEAK HOUR), streak/combo up to x2, and an earnings target of $150 in a 3:00 shift. Food is drawn glossy with gradients and sparkle, customers have faces whose mood changes with patience, sound is synthesized WebAudio — all original, no copied assets. Keyboard + mouse, offline, no build step.
 
-## Cara main
+## How to play
 
-- Klik bin bahan untuk mengambil, klik wok untuk memasak, klik talenan untuk memotong, klik piring untuk menyusun, klik lonceng PASS untuk menyajikan.
-- A/D atau ←/→ untuk jalan, E untuk beraksi di stasiun terdekat, P jeda, M suara, ENTER mulai / main lagi.
-- Piring lengkap yang cocok dengan tiket = lonceng menyala "SAJIKAN!". Layani cepat beruntun untuk streak dan bonus.
+- Click an ingredient bin to pick up, click the wok to cook, click the board to chop, click the plate to build, click the PASS bell to serve.
+- A/D or ←/→ to walk, E to act at the nearest station, P pause, M sound, ENTER start / play again.
+- A complete plate that matches a ticket = the bell lights up "SERVE!". Serve fast in a row for streaks and bonuses.
+- When patience runs low, the ticket flashes a red border with a "!" badge — serve that customer first.
+- Wave 2 brings a big DINNER RUSH! event: orders come faster and the target jumps to $90.
 
 ## Run it
 
@@ -18,7 +20,7 @@ Pasar Malam: Warung Saji — game memasak cepat di warung pasar malam Indonesia.
 node serve.ts
 ```
 
-Lalu buka http://localhost:8080 — atau buka game/index.html langsung di desktop Chrome.
+Then open http://localhost:8080 — or open game/index.html directly in desktop Chrome.
 
 ---
 

@@ -37,7 +37,7 @@ export function stageShot(G, kind) {
     // Cover: semua C1 dalam satu pandangan.
     G.time = 15;
     G.timeLeft = SHIFT_SECONDS - 15;
-    G.revenue = 42000;
+    G.revenue = 42;
     G.streak = 2;
     G.bestStreak = 2;
     G.tickets = [];
@@ -71,7 +71,7 @@ export function stageShot(G, kind) {
   if (kind === 'serve') {
     G.time = 75;
     G.timeLeft = SHIFT_SECONDS - 75;
-    G.revenue = 87000;
+    G.revenue = 87;
     G.streak = 3;
     G.bestStreak = 3;
     G.wave = 2;
@@ -102,16 +102,17 @@ export function stageShot(G, kind) {
     for (let i = 0; i < 10; i++) {
       G.coins.push({ x: STATION_X.pass + (G.rng() - 0.5) * 140, y: 380, vx: (G.rng() - 0.5) * 160, vy: -140 - G.rng() * 120, t: 0.2 });
     }
-    G.floaters.push({ x: STATION_X.pass + 20, y: 250, text: '+Rp 18.000', color: '#ffd166', t: 0.2 });
-    G.floaters.push({ x: STATION_X.pass - 130, y: 250, text: 'STREAK x3!', color: '#ff7a2f', t: 0.2 });
+    G.floaters.push({ x: STATION_X.pass + 20, y: 250, text: '+$18', color: '#ffd166', t: 0.2 });
+    G.floaters.push({ x: 640, y: 200, text: 'STREAK x3!', color: '#ff7a2f', t: 0.2, big: true });
+    G.banner = { text: 'DINNER RUSH!', sub: 'Orders are coming faster — target $90!', t: 0.5, dur: 2.6, big: true };
     return;
   }
   if (kind === 'end') {
     G.time = SHIFT_SECONDS;
     G.timeLeft = 0;
     G.phase = 'won';
-    G.over = { won: true, stars: 3, revenue: 214000, served: 14, burnt: 1, lost: 0, bestStreak: 5 };
-    G.revenue = 214000;
+    G.over = { won: true, stars: 3, revenue: 214, served: 14, burnt: 1, lost: 0, bestStreak: 5 };
+    G.revenue = 214;
     G.served = 14;
     return;
   }

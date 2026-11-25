@@ -1,21 +1,21 @@
-// Bahan dan resep Warung Saji. Tiap resep adalah daftar langkah
-// (bahan + stasiun yang mengolahnya): wok menghasilkan 'cooked',
-// talenan menghasilkan 'chopped'. Piring cocok dengan resep bila
-// multiset (bahan, keadaan) sama persis.
+// Ingredients and recipes for Warung Saji. Each recipe is a list of steps
+// (ingredient + the station that processes it): the wok yields 'cooked',
+// the board yields 'chopped'. A plate matches a recipe when its
+// (ingredient, state) multiset is exactly the same.
 export const INGREDIENTS = [
-  { id: 'nasi', name: 'Nasi', short: 'Nasi', base: '#f7efdc', dark: '#d9c9a3', accent: '#fff8e6' },
-  { id: 'mie', name: 'Mie', short: 'Mie', base: '#f2c14e', dark: '#c98f1f', accent: '#ffe08a' },
-  { id: 'ayam', name: 'Ayam', short: 'Ayam', base: '#e8a56b', dark: '#a8662e', accent: '#f7c795' },
-  { id: 'telur', name: 'Telur', short: 'Telur', base: '#fdfdfd', dark: '#d8d2c4', accent: '#ffffff' },
-  { id: 'cabai', name: 'Cabai', short: 'Cabai', base: '#e0392c', dark: '#8f1d12', accent: '#ff7a6b' },
-  { id: 'sayur', name: 'Sayur', short: 'Sayur', base: '#4caf50', dark: '#256b2a', accent: '#8ee193' },
+  { id: 'nasi', name: 'Rice', short: 'Rice', base: '#f7efdc', dark: '#d9c9a3', accent: '#fff8e6' },
+  { id: 'mie', name: 'Noodles', short: 'Noodles', base: '#f2c14e', dark: '#c98f1f', accent: '#ffe08a' },
+  { id: 'ayam', name: 'Chicken', short: 'Chicken', base: '#e8a56b', dark: '#a8662e', accent: '#f7c795' },
+  { id: 'telur', name: 'Egg', short: 'Egg', base: '#fdfdfd', dark: '#d8d2c4', accent: '#ffffff' },
+  { id: 'cabai', name: 'Chili', short: 'Chili', base: '#e0392c', dark: '#8f1d12', accent: '#ff7a6b' },
+  { id: 'sayur', name: 'Greens', short: 'Greens', base: '#4caf50', dark: '#256b2a', accent: '#8ee193' },
 ];
 
 export const ING_BY_ID = Object.fromEntries(INGREDIENTS.map((g) => [g.id, g]));
 
 export const RECIPES = [
   {
-    id: 'nasgor', name: 'Nasi Goreng', price: 15000,
+    id: 'nasgor', name: 'Nasi Goreng', price: 15,
     steps: [
       { ing: 'nasi', station: 'wok' },
       { ing: 'telur', station: 'wok' },
@@ -23,7 +23,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'miegor', name: 'Mie Goreng', price: 14000,
+    id: 'miegor', name: 'Mie Goreng', price: 14,
     steps: [
       { ing: 'mie', station: 'wok' },
       { ing: 'telur', station: 'wok' },
@@ -31,14 +31,14 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'geprek', name: 'Ayam Geprek', price: 18000,
+    id: 'geprek', name: 'Ayam Geprek', price: 18,
     steps: [
       { ing: 'ayam', station: 'wok' },
       { ing: 'cabai', station: 'board' },
     ],
   },
   {
-    id: 'nasiayam', name: 'Nasi Ayam', price: 17000,
+    id: 'nasiayam', name: 'Nasi Ayam', price: 17,
     steps: [
       { ing: 'nasi', station: 'wok' },
       { ing: 'ayam', station: 'wok' },
@@ -46,7 +46,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'mieayam', name: 'Mie Ayam', price: 16000,
+    id: 'mieayam', name: 'Mie Ayam', price: 16,
     steps: [
       { ing: 'mie', station: 'wok' },
       { ing: 'ayam', station: 'wok' },
@@ -54,7 +54,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'omelet', name: 'Omelet Sayur', price: 12000,
+    id: 'omelet', name: 'Vegetable Omelet', price: 12,
     steps: [
       { ing: 'telur', station: 'wok' },
       { ing: 'sayur', station: 'board' },

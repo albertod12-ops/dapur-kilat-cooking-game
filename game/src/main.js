@@ -5,7 +5,7 @@
 // adegan itu, melukisnya, lalu set window.__shotReady.
 // ?autopilot=1 (&seed=N) menjalankan autopilot headless sampai menang/kalah
 // lalu set window.__result — untuk verifikasi, bukan untuk pemain.
-import { H, W } from './config.js';
+import { H, STAR_MARKS, W } from './config.js';
 import { createGame, startShift } from './state.js';
 import { stepGame } from './sim.js';
 import { walkTo } from './chef.js';
@@ -135,7 +135,7 @@ if (autopilotMode) {
   const G2 = createGame(seed);
   if (result.won) {
     G2.phase = 'won';
-    G2.over = { won: true, stars: result.revenue >= 260000 ? 3 : result.revenue >= 200000 ? 2 : 1, revenue: result.revenue, served: result.served, burnt: result.burnt, lost: result.lost, bestStreak: result.bestStreak };
+    G2.over = { won: true, stars: result.revenue >= STAR_MARKS[2] ? 3 : result.revenue >= STAR_MARKS[1] ? 2 : 1, revenue: result.revenue, served: result.served, burnt: result.burnt, lost: result.lost, bestStreak: result.bestStreak };
     G2.revenue = result.revenue;
     G2.served = result.served;
   } else {

@@ -1,9 +1,9 @@
-// Stasiun: bin bahan, wok, talenan, piring, pass, tempat sampah.
-// Satu-satunya tempat logika interaksi tinggal: klik / E memanggil
-// requestAction, koki berjalan dulu (pending action) lalu aksi jalan.
-// Hand = {ing, state:'raw'|'cooked'|'chopped'} — piring hanya menerima
-// yang sudah diolah, bukan bahan mentah.
-import { BURN_GRACE, CHOP_TIME, COOK_TIME, LAYOUT, STATION_X, binCenterX, binRect, comboFor, fmtRp } from './config.js';
+// Stations: ingredient bins, wok, board, plate, pass, trash.
+// The only place interaction logic lives: click / E calls
+// requestAction, the chef walks first (pending action), then the action runs.
+// Hand = {ing, state:'raw'|'cooked'|'chopped'} — the plate only accepts
+// processed items, never raw ingredients.
+import { BURN_GRACE, CHOP_TIME, COOK_TIME, LAYOUT, STATION_X, binCenterX, binRect, comboFor, fmtMoney } from './config.js';
 import { INGREDIENTS, ING_BY_ID, RECIPES, plateMatches, processedState, stationFor } from './recipes.js';
 import { addFloater, burstCoins } from './state.js';
 import { hasArrived, walkTo } from './chef.js';
@@ -98,7 +98,7 @@ export function doStationAction(G, a) {
     if (hand && hand.state === 'raw' && stationForRecipe(hand.ing) === 'wok') {
       if (G.wok) {
         sfxBuzz();
-        addFloater(G, STATION_X.wok, 250, 'Wok penuh!', '#ff7a6e');
+        addFloater(G, STATION_X.wok, 250, 'Wok is full!', '#ff7a6e');
         return;
       }
       G.wok = { ing: hand.ing, t: 0, state: 'cooking' };
@@ -157,7 +157,7 @@ export function doStationAction(G, a) {
       const r = recipeForPlateItems(G.plate);
       if (r) {
         G.passGlow = 3;
-        addFloater(G, STATION_X.plate, 250, r.name + ' SIAP!', '#ffd166');
+        addFloater(G, STATION_X.plate, 250, r.name + ' READY!', '#ffd166');
         sfxBell();
       }
       return;
@@ -214,7 +214,7 @@ export function serveAtPass(G) {
   }
   const ti = G.tickets.findIndex((t) => t.recipe.id === recipe.id);
   if (ti === -1) {
-    addFloater(G, STATION_X.pass, 250, 'Tidak ada yang pesan ' + recipe.name, '#ff7a6e');
+    addFloater(G, STATION_X.pass, 250, 'No one ordered ' + recipe.name, '#ff7a6e');
     sfxBuzz();
     return;
   }
@@ -227,9 +227,9 @@ export function serveAtPass(G) {
   G.streak++;
   if (G.streak > G.bestStreak) G.bestStreak = G.streak;
   G.passFlash = 0.5;
-  burstCoins(G, STATION_X.pass, 380, 10);
-  addFloater(G, STATION_X.pass + 60, 250, '+' + fmtRp(earned) + (mult > 1 ? '  x' + mult : ''), '#ffd166');
-  if (G.streak >= 3) addFloater(G, STATION_X.pass - 80, 250, 'STREAK x' + G.streak + '!', '#ff7a2f');
+  burstCoins(G, STATION_X.pass, 380, 10 + Math.min(10, G.streak * 2));
+  addFloater(G, STATION_X.pass + 60, 250, '+' + fmtMoney(earned) + (mult > 1 ? '  x' + mult : ''), '#ffd166');
+  if (G.streak >= 3) addFloater(G, 640, 210, 'STREAK x' + G.streak + '!', '#ff7a2f', true);
   sfxCoin();
 }
 
@@ -244,7 +244,7 @@ export function updateStations(G, dt) {
       sfxDing();
     } else if (G.wok.state === 'done' && G.wok.t >= COOK_TIME + BURN_GRACE) {
       G.wok.state = 'burnt';
-      addFloater(G, STATION_X.wok, 250, 'Hangus!', '#ff7a6e');
+      addFloater(G, STATION_X.wok, 250, 'Burnt!', '#ff7a6e');
     }
   }
   // Uap dari wok yang sedang masak.

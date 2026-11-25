@@ -1,6 +1,6 @@
-// Pelanggan — wajah orisinil digambar path, bukan emoji.
-// Tiap pelanggan punya nama + palet sendiri; mood berubahตาม kesabaran:
-// senyum (>60%), cemas (30-60%), marah (<30%).
+// Customers — original faces drawn with paths, not emoji.
+// Each customer has a name and their own palette; mood shifts with patience:
+// happy (>60%), worried (30-60%), angry (<30%).
 import { pick } from './random.js';
 
 const NAMES = [
@@ -27,9 +27,9 @@ export function makeCustomer(rng, id) {
 
 export function moodOf(patience, maxPatience) {
   const f = patience / maxPatience;
-  if (f > 0.6) return 'senyum';
-  if (f > 0.3) return 'cemas';
-  return 'marah';
+  if (f > 0.6) return 'happy';
+  if (f > 0.3) return 'worried';
+  return 'angry';
 }
 
 // Wajah pelanggan (bust) di (x, y), radius r.
@@ -72,8 +72,8 @@ export function drawCustomerFace(ctx, c, x, y, r, mood) {
   const eyeY = y - r * 0.18;
   const eyeDX = r * 0.24;
   ctx.fillStyle = '#241a12';
-  if (mood === 'marah') {
-    // Alis miring marah.
+  if (mood === 'angry') {
+    // Angry slanted brows.
     ctx.strokeStyle = '#241a12';
     ctx.lineWidth = r * 0.07;
     ctx.beginPath();
@@ -100,9 +100,9 @@ export function drawCustomerFace(ctx, c, x, y, r, mood) {
   ctx.strokeStyle = '#7a3b22';
   ctx.lineWidth = r * 0.07;
   ctx.beginPath();
-  if (mood === 'senyum') {
+  if (mood === 'happy') {
     ctx.arc(x, y + r * 0.08, r * 0.26, 0.15 * Math.PI, 0.85 * Math.PI);
-  } else if (mood === 'cemas') {
+  } else if (mood === 'worried') {
     ctx.arc(x, y + r * 0.28, r * 0.16, 1.15 * Math.PI, 1.85 * Math.PI);
   } else {
     ctx.moveTo(x - r * 0.2, y + r * 0.32);
