@@ -1,65 +1,73 @@
 // Suara sintesis WebAudio — tanpa file audio, tanpa network.
 // Semua bunyi dibuat dari oscillator/noise di sini, orisinil.
-let ctx = null;
+let actx = null;
 let muted = false;
 
 export function ensureAudio() {
   if (typeof window === 'undefined') return;
-  if (!ctx) {
+  if (!actx) {
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
-      ctx = new AC();
+      actx = new AC();
     } catch {
-      ctx = null;
+      actx = null;
     }
   }
-  if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+  if (actx && actx.state === 'suspended') actx.resume().catch(() => {});
 }
 
 export function toggleMute() {
   muted = !muted;
   return muted;
 }
+
 export function isMuted() {
   return muted;
 }
 
 function tone(freq, dur, type, vol, slideTo) {
-  if (!ctx || muted) return;
+  if (!actx || muted) return;
   try {
-    const t0 = ctx.currentTime;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
+    const t0 = actx.currentTime;
+    const o = actx.createOscillator();
+    const g = actx.createGain();
     o.type = type;
     o.frequency.setValueAtTime(freq, t0);
     if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
     g.gain.setValueAtTime(vol, t0);
     g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    o.connect(g).connect(ctx.destination);
+    o.connect(g);
+    g.connect(actx.destination);
     o.start(t0);
     o.stop(t0 + dur);
-  } catch { /* suara tidak boleh mematikan game */ }
+  } catch {
+    // Suara tidak boleh mematikan game.
+  }
 }
 
 function noiseBurst(dur, vol, filterFreq) {
-  if (!ctx || muted) return;
+  if (!actx || muted) return;
   try {
-    const t0 = ctx.currentTime;
-    const len = Math.floor(ctx.sampleRate * dur);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const t0 = actx.currentTime;
+    const len = Math.floor(actx.sampleRate * dur);
+    const buf = actx.createBuffer(1, len, actx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
-    const src = ctx.createBufferSource();
+    const src = actx.createBufferSource();
     src.buffer = buf;
-    const f = ctx.createBiquadFilter();
+    const f = actx.createBiquadFilter();
     f.type = 'bandpass';
     f.frequency.value = filterFreq;
-    const g = ctx.createGain();
+    const g = actx.createGain();
     g.gain.setValueAtTime(vol, t0);
     g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    src.connect(f).connect(g).connect(ctx.destination);
+    src.connect(f);
+    f.connect(g);
+    g.connect(actx.destination);
     src.start(t0);
-  } catch { /* suara tidak boleh mematikan game */ }
+  } catch {
+    // Suara tidak boleh mematikan game.
+  }
 }
 
 // Desis wok saat bahan masuk.

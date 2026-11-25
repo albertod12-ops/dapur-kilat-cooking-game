@@ -1,6 +1,6 @@
-// RNG deterministik (mulberry32) — satu seed mengunci semua keacakan game,
-// jadi autopilot + screenshot bisa direproduksi persis.
-export function mulberry32(seed) {
+// RNG deterministik (mulberry32) agar shift dan autopilot bisa diulang
+// dengan seed yang sama. Semua keacakan permainan lewat sini.
+export function makeRng(seed) {
   let a = seed >>> 0;
   return function next() {
     a |= 0;
@@ -15,6 +15,15 @@ export function pick(rng, arr) {
   return arr[Math.floor(rng() * arr.length)];
 }
 
-export function range(rng, lo, hi) {
-  return lo + rng() * (hi - lo);
+export function pickIndex(rng, n) {
+  return Math.floor(rng() * n);
+}
+
+export function shuffle(rng, arr) {
+  const out = arr.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
 }

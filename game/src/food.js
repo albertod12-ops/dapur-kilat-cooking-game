@@ -1,6 +1,6 @@
 // Makanan mengkilap — tiap bahan digambar dengan radial gradient + gloss
 // highlight + bayangan, supaya terlihat lezat saat diperkecil, bukan ikon datar.
-import { INGREDIENTS } from './recipes.js';
+import { ING_BY_ID } from './recipes.js';
 
 function gloss(ctx, x, y, r) {
   ctx.save();
@@ -12,7 +12,7 @@ function gloss(ctx, x, y, r) {
   ctx.restore();
 }
 
-function shadow(ctx, x, y, r) {
+function dropShadow(ctx, x, y, r) {
   ctx.save();
   ctx.globalAlpha = 0.28;
   ctx.fillStyle = '#000000';
@@ -30,15 +30,37 @@ function radial(ctx, x, y, r, hi, base, lo) {
   return g;
 }
 
+function sparkle(ctx, x, y, r, t) {
+  const s = (Math.sin(t * 3 + x * 0.05) + 1) / 2;
+  if (s <= 0.75) return;
+  ctx.save();
+  ctx.globalAlpha = (s - 0.75) * 3;
+  ctx.fillStyle = '#ffffff';
+  const sx = x + r * 0.55;
+  const sy = y - r * 0.55;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - r * 0.22);
+  ctx.lineTo(sx + r * 0.06, sy - r * 0.06);
+  ctx.lineTo(sx + r * 0.22, sy);
+  ctx.lineTo(sx + r * 0.06, sy + r * 0.06);
+  ctx.lineTo(sx, sy + r * 0.22);
+  ctx.lineTo(sx - r * 0.06, sy + r * 0.06);
+  ctx.lineTo(sx - r * 0.22, sy);
+  ctx.lineTo(sx - r * 0.06, sy - r * 0.06);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 // Gambar satu bahan di (x, y) dengan radius r. `t` = waktu (untuk sparkle).
 export function drawIngredient(ctx, id, x, y, r, t) {
-  const ing = INGREDIENTS[id];
+  const ing = ING_BY_ID[id];
   if (!ing) return;
-  shadow(ctx, x, y, r);
+  dropShadow(ctx, x, y, r);
   ctx.save();
   if (id === 'nasi') {
     // Gundukan nasi putih.
-    ctx.fillStyle = radial(ctx, x, y, r, ing.hi, ing.base, ing.lo);
+    ctx.fillStyle = radial(ctx, x, y, r, ing.accent, ing.base, ing.dark);
     ctx.beginPath();
     ctx.ellipse(x, y, r, r * 0.72, 0, Math.PI, 0);
     ctx.fill();
@@ -51,22 +73,22 @@ export function drawIngredient(ctx, id, x, y, r, t) {
     }
   } else if (id === 'mie') {
     // Gulungan mie kuning.
-    ctx.strokeStyle = ing.lo;
+    ctx.strokeStyle = ing.dark;
     ctx.lineWidth = r * 0.16;
     ctx.lineCap = 'round';
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
       ctx.arc(x, y, r * (0.85 - i * 0.22), 0.3 + i * 0.8, Math.PI * 1.5 + i * 0.5);
-      ctx.strokeStyle = i === 0 ? ing.base : ing.lo;
+      ctx.strokeStyle = i === 0 ? ing.base : ing.dark;
       ctx.stroke();
     }
-    ctx.fillStyle = ing.hi;
+    ctx.fillStyle = ing.accent;
     ctx.beginPath();
     ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.16, 0, Math.PI * 2);
     ctx.fill();
   } else if (id === 'ayam') {
     // Paha ayam goreng.
-    ctx.fillStyle = radial(ctx, x, y, r, ing.hi, ing.base, ing.lo);
+    ctx.fillStyle = radial(ctx, x, y, r, ing.accent, ing.base, ing.dark);
     ctx.beginPath();
     ctx.ellipse(x - r * 0.1, y, r * 0.72, r * 0.62, -0.4, 0, Math.PI * 2);
     ctx.fill();
@@ -94,7 +116,7 @@ export function drawIngredient(ctx, id, x, y, r, t) {
     gloss(ctx, x, y - r * 0.1, r * 0.6);
   } else if (id === 'cabai') {
     // Cabai merah melengkung.
-    ctx.strokeStyle = ing.lo;
+    ctx.strokeStyle = ing.dark;
     ctx.lineWidth = r * 0.34;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -114,7 +136,7 @@ export function drawIngredient(ctx, id, x, y, r, t) {
     gloss(ctx, x, y, r);
   } else if (id === 'sayur') {
     // Daun hijau segar.
-    ctx.fillStyle = radial(ctx, x, y, r, ing.hi, ing.base, ing.lo);
+    ctx.fillStyle = radial(ctx, x, y, r, ing.accent, ing.base, ing.dark);
     for (let i = 0; i < 3; i++) {
       const a = -0.6 + i * 0.6;
       ctx.save();
@@ -125,7 +147,7 @@ export function drawIngredient(ctx, id, x, y, r, t) {
       ctx.fill();
       ctx.restore();
     }
-    ctx.strokeStyle = ing.lo;
+    ctx.strokeStyle = ing.dark;
     ctx.lineWidth = r * 0.08;
     ctx.beginPath();
     ctx.moveTo(x, y + r * 0.6);
@@ -133,32 +155,10 @@ export function drawIngredient(ctx, id, x, y, r, t) {
     ctx.stroke();
   }
   ctx.restore();
-  // Sparkle kecil berkedip — makanan matang terlihat segar.
-  if (t !== undefined) {
-    const s = (Math.sin(t * 3 + x * 0.05) + 1) / 2;
-    if (s > 0.75) {
-      ctx.save();
-      ctx.globalAlpha = (s - 0.75) * 3;
-      ctx.fillStyle = '#ffffff';
-      const sx = x + r * 0.55;
-      const sy = y - r * 0.55;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy - r * 0.22);
-      ctx.lineTo(sx + r * 0.06, sy - r * 0.06);
-      ctx.lineTo(sx + r * 0.22, sy);
-      ctx.lineTo(sx + r * 0.06, sy + r * 0.06);
-      ctx.lineTo(sx, sy + r * 0.22);
-      ctx.lineTo(sx - r * 0.06, sy + r * 0.06);
-      ctx.lineTo(sx - r * 0.22, sy);
-      ctx.lineTo(sx - r * 0.06, sy - r * 0.06);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
-  }
+  if (t !== undefined) sparkle(ctx, x, y, r, t);
 }
 
-// Piring putih dengan isi (daftar id bahan) — dipakai di stasiun piring + pass.
+// Piring putih dengan isi (daftar {ing, state}) — dipakai di stasiun piring.
 export function drawPlate(ctx, x, y, r, items, t) {
   ctx.save();
   ctx.fillStyle = '#e8e2d4';
@@ -176,9 +176,9 @@ export function drawPlate(ctx, x, y, r, items, t) {
   ctx.stroke();
   if (items && items.length) {
     const n = items.length;
-    items.forEach((id, i) => {
+    items.forEach((it, i) => {
       const ox = n === 1 ? 0 : (i - (n - 1) / 2) * r * 0.62;
-      drawIngredient(ctx, id, x + ox, y - r * 0.12, r * 0.42, t);
+      drawIngredient(ctx, it.ing, x + ox, y - r * 0.12, r * 0.42, t);
     });
   }
   ctx.restore();

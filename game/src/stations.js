@@ -1,33 +1,32 @@
 // Stasiun: bin bahan, wok, talenan, piring, pass, tempat sampah.
 // Satu-satunya tempat logika interaksi tinggal: klik / E memanggil
-// doStationAction, koki berjalan dulu (pending action) lalu aksi jalan.
-// Carrying = {ing, state:'raw'|'cooked'|'chopped'} — piring hanya menerima
+// requestAction, koki berjalan dulu (pending action) lalu aksi jalan.
+// Hand = {ing, state:'raw'|'cooked'|'chopped'} — piring hanya menerima
 // yang sudah diolah, bukan bahan mentah.
-import { BURN_AFTER, CHOP_SECONDS, LAYOUT } from './config.js';
-import { INGREDIENTS, INGREDIENT_IDS, recipeForPlate } from './recipes.js';
-import { formatRp } from './recipes.js';
-import { addFloater, streakMult } from './state.js';
-import { chefArrived, walkTo } from './chef.js';
+import { BURN_GRACE, CHOP_TIME, COOK_TIME, LAYOUT, STATION_X, binCenterX, binRect, comboFor, fmtRp } from './config.js';
+import { INGREDIENTS, ING_BY_ID, RECIPES, plateMatches, processedState, stationFor } from './recipes.js';
+import { addFloater, burstCoins } from './state.js';
+import { hasArrived, walkTo } from './chef.js';
 import { sfxBell, sfxBuzz, sfxChop, sfxCoin, sfxDing, sfxPop, sfxSizzle } from './audio.js';
 
 function inRect(x, y, r) {
   return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 }
 
+// Stasiun apa yang diklik? Mengembalikan {kind, ...} + cx (tempat koki berdiri).
 export function stationAt(x, y) {
-  const L = LAYOUT;
-  for (let i = 0; i < INGREDIENT_IDS.length; i++) {
-    const r = { x: L.bins.x + i * (L.bins.w + L.bins.gap), y: L.bins.y, w: L.bins.w, h: L.bins.h };
-    if (inRect(x, y, r)) return { kind: 'bin', ing: INGREDIENT_IDS[i], cx: r.x + r.w / 2 };
+  for (let i = 0; i < INGREDIENTS.length; i++) {
+    const r = binRect(i);
+    if (inRect(x, y, r)) return { kind: 'bin', ing: INGREDIENTS[i].id, cx: binCenterX(i) };
   }
-  if (inRect(x, y, L.wok)) return { kind: 'wok', cx: L.wok.x + L.wok.w / 2 };
-  if (inRect(x, y, L.board)) return { kind: 'board', cx: L.board.x + L.board.w / 2 };
-  const p0 = { x: L.plates.x + 8, y: L.plates.y + 30, w: 116, h: 130 };
-  const p1 = { x: L.plates.x + 136, y: L.plates.y + 30, w: 116, h: 130 };
-  if (inRect(x, y, p0)) return { kind: 'plate', index: 0, cx: p0.x + p0.w / 2 };
-  if (inRect(x, y, p1)) return { kind: 'plate', index: 1, cx: p1.x + p1.w / 2 };
-  if (inRect(x, y, L.pass)) return { kind: 'pass', cx: L.pass.x + L.pass.w / 2 };
-  if (inRect(x, y, L.trash)) return { kind: 'trash', cx: L.trash.x + L.trash.w / 2 };
+  // Area counter: wok, talenan, piring, pass, sampah (y 240–470).
+  if (y >= 240 && y <= 470) {
+    if (x >= 380 && x < 540) return { kind: 'wok', cx: STATION_X.wok };
+    if (x >= 580 && x < 740) return { kind: 'board', cx: STATION_X.board };
+    if (x >= 780 && x < 940) return { kind: 'plate', cx: STATION_X.plate };
+    if (x >= 980 && x < 1240) return { kind: 'pass', cx: STATION_X.pass };
+    if (x >= 60 && x < 180) return { kind: 'trash', cx: STATION_X.trash };
+  }
   return null;
 }
 
@@ -47,31 +46,33 @@ export function clickAt(G, x, y) {
   }
   walkTo(G, st.cx);
   G.chef.action = st;
-  if (chefArrived(G)) runPendingAction(G);
+  if (hasArrived(G)) runPendingAction(G);
 }
 
-// Tombol E: interaksi dengan stasiun terdekat (dalam 90 px).
+// Tombol E: interaksi dengan stasiun terdekat (dalam 100 px).
 export function interactNearest(G) {
   if (G.phase !== 'play') return;
   const cx = G.chef.x;
-  let best = null;
-  let bestD = 95;
   const probes = [
-    { kind: 'wok', cx: LAYOUT.wok.x + LAYOUT.wok.w / 2 },
-    { kind: 'board', cx: LAYOUT.board.x + LAYOUT.board.w / 2 },
-    { kind: 'plate', index: 0, cx: LAYOUT.plates.x + 66 },
-    { kind: 'plate', index: 1, cx: LAYOUT.plates.x + 194 },
-    { kind: 'pass', cx: LAYOUT.pass.x + LAYOUT.pass.w / 2 },
-    { kind: 'trash', cx: LAYOUT.trash.x + LAYOUT.trash.w / 2 },
+    { kind: 'trash', cx: STATION_X.trash },
+    { kind: 'wok', cx: STATION_X.wok },
+    { kind: 'board', cx: STATION_X.board },
+    { kind: 'plate', cx: STATION_X.plate },
+    { kind: 'pass', cx: STATION_X.pass },
   ];
+  let best = null;
+  let bestD = 100;
   for (const p of probes) {
     const d = Math.abs(p.cx - cx);
-    if (d < bestD) { bestD = d; best = p; }
+    if (d < bestD) {
+      bestD = d;
+      best = p;
+    }
   }
   if (best) {
     walkTo(G, best.cx);
     G.chef.action = best;
-    if (chefArrived(G)) runPendingAction(G);
+    if (hasArrived(G)) runPendingAction(G);
   }
 }
 
@@ -83,57 +84,57 @@ export function runPendingAction(G) {
 }
 
 export function doStationAction(G, a) {
-  const chef = G.chef;
+  const hand = G.chef.hand;
   if (a.kind === 'bin') {
-    if (chef.carrying) { sfxBuzz(); return; }
-    chef.carrying = { ing: a.ing, state: 'raw' };
+    if (hand) {
+      sfxBuzz();
+      return;
+    }
+    G.chef.hand = { ing: a.ing, state: 'raw' };
     sfxPop();
     return;
   }
   if (a.kind === 'wok') {
-    const slots = G.wok.slots;
-    if (chef.carrying && chef.carrying.state === 'raw' && INGREDIENTS[chef.carrying.ing].station === 'wok') {
-      const free = slots.findIndex((s) => s === null);
-      if (free === -1) { sfxBuzz(); addFloater(G, 184, 280, 'Wok penuh!', '#ff7a6e'); return; }
-      slots[free] = { ing: chef.carrying.ing, t: 0, state: 'cooking' };
-      chef.carrying = null;
+    if (hand && hand.state === 'raw' && stationForRecipe(hand.ing) === 'wok') {
+      if (G.wok) {
+        sfxBuzz();
+        addFloater(G, STATION_X.wok, 250, 'Wok penuh!', '#ff7a6e');
+        return;
+      }
+      G.wok = { ing: hand.ing, t: 0, state: 'cooking' };
+      G.chef.hand = null;
       sfxSizzle();
       return;
     }
-    if (!chef.carrying) {
-      const done = slots.findIndex((s) => s && s.state === 'done');
-      if (done !== -1) {
-        chef.carrying = { ing: slots[done].ing, state: 'cooked' };
-        slots[done] = null;
-        sfxPop();
-        return;
-      }
-      const burnt = slots.findIndex((s) => s && s.state === 'burnt');
-      if (burnt !== -1) {
-        chef.carrying = { ing: slots[burnt].ing, state: 'burnt' };
-        slots[burnt] = null;
-        sfxPop();
-        return;
-      }
+    if (!hand && G.wok && G.wok.state === 'done') {
+      G.chef.hand = { ing: G.wok.ing, state: 'cooked' };
+      G.wok = null;
+      sfxPop();
+      return;
+    }
+    if (!hand && G.wok && G.wok.state === 'burnt') {
+      G.chef.hand = { ing: G.wok.ing, state: 'burnt' };
+      G.wok = null;
+      sfxPop();
+      return;
     }
     sfxBuzz();
     return;
   }
   if (a.kind === 'board') {
-    if (chef.carrying && chef.carrying.state === 'raw' && INGREDIENTS[chef.carrying.ing].station === 'board') {
-      if (G.board.ing) { sfxBuzz(); return; }
-      G.board.ing = chef.carrying.ing;
-      G.board.progress = 0;
-      G.board.chopping = true;
-      chef.carrying = null;
+    if (hand && hand.state === 'raw' && stationForRecipe(hand.ing) === 'board') {
+      if (G.board) {
+        sfxBuzz();
+        return;
+      }
+      G.board = { ing: hand.ing, t: 0, state: 'chopping' };
+      G.chef.hand = null;
       sfxChop();
       return;
     }
-    if (!chef.carrying && G.board.ing && G.board.progress >= 1) {
-      chef.carrying = { ing: G.board.ing, state: 'chopped' };
-      G.board.ing = null;
-      G.board.progress = 0;
-      G.board.chopping = false;
+    if (!hand && G.board && G.board.state === 'done') {
+      G.chef.hand = { ing: G.board.ing, state: 'chopped' };
+      G.board = null;
       sfxPop();
       return;
     }
@@ -141,26 +142,31 @@ export function doStationAction(G, a) {
     return;
   }
   if (a.kind === 'plate') {
-    const plate = G.plates[a.index];
-    if (chef.carrying && (chef.carrying.state === 'cooked' || chef.carrying.state === 'chopped')) {
-      if (plate.items.includes(chef.carrying.ing)) { sfxBuzz(); return; }
-      if (plate.items.length >= 3) { sfxBuzz(); return; }
-      plate.items.push(chef.carrying.ing);
-      chef.carrying = null;
+    if (hand && (hand.state === 'cooked' || hand.state === 'chopped')) {
+      if (G.plate.length >= 3) {
+        sfxBuzz();
+        return;
+      }
+      if (G.plate.some((p) => p.ing === hand.ing)) {
+        sfxBuzz();
+        return;
+      }
+      G.plate.push({ ing: hand.ing, state: hand.state });
+      G.chef.hand = null;
       sfxPop();
-      const r = recipeForPlate(plate.items);
+      const r = recipeForPlateItems(G.plate);
       if (r) {
-        G.pass.glow = 3;
-        addFloater(G, 764, 320, r.name + ' SIAP!', '#ffd166');
+        G.passGlow = 3;
+        addFloater(G, STATION_X.plate, 250, r.name + ' SIAP!', '#ffd166');
         sfxBell();
       }
       return;
     }
     // Tangan kosong + klik piring berisi: ambil kembali bahan terakhir
     // (jadi piring yang salah / tak ada pemesannya bisa dikosongkan).
-    if (!chef.carrying && plate.items.length > 0) {
-      const ing = plate.items.pop();
-      chef.carrying = { ing, state: INGREDIENTS[ing].station === 'wok' ? 'cooked' : 'chopped' };
+    if (!hand && G.plate.length > 0) {
+      const last = G.plate.pop();
+      G.chef.hand = { ing: last.ing, state: last.state };
       sfxPop();
       return;
     }
@@ -172,85 +178,85 @@ export function doStationAction(G, a) {
     return;
   }
   if (a.kind === 'trash') {
-    if (chef.carrying) {
-      if (chef.carrying.state === 'burnt') G.burnt++;
-      chef.carrying = null;
-      G.trash.flash = 0.4;
+    if (hand) {
+      if (hand.state === 'burnt') G.burnt++;
+      G.chef.hand = null;
+      G.trashFlash = 0.4;
       sfxBuzz();
     }
     return;
   }
 }
 
-// Sajikan piring lengkap yang cocok dengan tiket tertua.
+// Stasiun pengolahan sebuah bahan (semua resep sepakat untuk bahan yang sama).
+function stationForRecipe(ing) {
+  for (const r of RECIPES) {
+    const step = r.steps.find((s) => s.ing === ing);
+    if (step) return step.station;
+  }
+  return null;
+}
+
+// Resep yang cocok dengan isi piring saat ini (atau null).
+export function recipeForPlateItems(plate) {
+  for (const r of RECIPES) {
+    if (plateMatches(plate, r)) return r;
+  }
+  return null;
+}
+
+// Sajikan piring lengkap yang cocok dengan tiket yang menunggu.
 export function serveAtPass(G) {
-  for (let i = 0; i < G.plates.length; i++) {
-    const plate = G.plates[i];
-    const recipe = recipeForPlate(plate.items);
-    if (!recipe) continue;
-    const ti = G.tickets.findIndex((t) => t.recipe.id === recipe.id);
-    if (ti === -1) {
-      addFloater(G, 1052, 320, 'Tidak ada yang pesan ' + recipe.name, '#ff7a6e');
-      sfxBuzz();
-      return;
-    }
-    const ticket = G.tickets[ti];
-    G.tickets.splice(ti, 1);
-    plate.items = [];
-    const mult = streakMult(G);
-    const earned = Math.round(recipe.price * mult);
-    G.revenue += earned;
-    G.served++;
-    G.streak++;
-    if (G.streak > G.bestStreak) G.bestStreak = G.streak;
-    G.pass.flash = 0.5;
-    burstCoins(G, 1052, 400, 10);
-    addFloater(G, 1130, 320, '+' + formatRp(earned) + (mult > 1 ? '  x' + mult.toFixed(2) : ''), '#ffd166');
-    if (G.streak >= 3) addFloater(G, 980, 320, 'STREAK x' + G.streak + '!', '#ff7a2f');
-    sfxCoin();
+  const recipe = recipeForPlateItems(G.plate);
+  if (!recipe) {
+    sfxBuzz();
     return;
   }
-  sfxBuzz();
-}
-
-export function burstCoins(G, x, y, n) {
-  for (let i = 0; i < n; i++) {
-    G.coins.push({
-      x: x + (G.rng() - 0.5) * 140,
-      y,
-      vx: (G.rng() - 0.5) * 160,
-      vy: -140 - G.rng() * 120,
-      t: 0,
-    });
+  const ti = G.tickets.findIndex((t) => t.recipe.id === recipe.id);
+  if (ti === -1) {
+    addFloater(G, STATION_X.pass, 250, 'Tidak ada yang pesan ' + recipe.name, '#ff7a6e');
+    sfxBuzz();
+    return;
   }
+  G.tickets.splice(ti, 1);
+  G.plate = [];
+  const mult = comboFor(G.streak);
+  const earned = Math.round(recipe.price * mult);
+  G.revenue += earned;
+  G.served++;
+  G.streak++;
+  if (G.streak > G.bestStreak) G.bestStreak = G.streak;
+  G.passFlash = 0.5;
+  burstCoins(G, STATION_X.pass, 380, 10);
+  addFloater(G, STATION_X.pass + 60, 250, '+' + fmtRp(earned) + (mult > 1 ? '  x' + mult : ''), '#ffd166');
+  if (G.streak >= 3) addFloater(G, STATION_X.pass - 80, 250, 'STREAK x' + G.streak + '!', '#ff7a2f');
+  sfxCoin();
 }
 
 // Masak di wok + potong di talenan, tiap frame.
 export function updateStations(G, dt) {
   if (G.phase !== 'play') return;
-  for (const slot of G.wok.slots) {
-    if (!slot) continue;
-    slot.t += dt;
-    const cook = INGREDIENTS[slot.ing].cook;
-    if (slot.state === 'cooking' && slot.t >= cook) {
-      slot.state = 'done';
-      slot.t = cook;
+  if (G.wok) {
+    G.wok.t += dt;
+    if (G.wok.state === 'cooking' && G.wok.t >= COOK_TIME) {
+      G.wok.state = 'done';
+      G.wok.t = COOK_TIME;
       sfxDing();
-    } else if (slot.state === 'done' && slot.t >= cook + BURN_AFTER) {
-      slot.state = 'burnt';
-      addFloater(G, 184, 280, 'Hangus!', '#ff7a6e');
+    } else if (G.wok.state === 'done' && G.wok.t >= COOK_TIME + BURN_GRACE) {
+      G.wok.state = 'burnt';
+      addFloater(G, STATION_X.wok, 250, 'Hangus!', '#ff7a6e');
     }
   }
   // Uap dari wok yang sedang masak.
-  if (G.wok.slots.some((s) => s && s.state !== 'burnt') && G.rng() < dt * 6) {
-    G.steam.push({ x: 150 + G.rng() * 70, y: 360, t: 0, life: 1.1 + G.rng() * 0.5 });
+  if (G.wok && G.wok.state !== 'burnt' && G.rng() < dt * 6) {
+    G.steam.push({ x: STATION_X.wok - 40 + G.rng() * 80, y: 300, t: 0, life: 1.1 + G.rng() * 0.5 });
   }
-  if (G.board.chopping && G.board.ing) {
-    G.board.progress += dt / CHOP_SECONDS;
+  if (G.board && G.board.state === 'chopping') {
+    G.board.t += dt;
     if (G.rng() < dt * 8) sfxChop();
-    if (G.board.progress >= 1) {
-      G.board.progress = 1;
-      G.board.chopping = false;
+    if (G.board.t >= CHOP_TIME) {
+      G.board.t = CHOP_TIME;
+      G.board.state = 'done';
       sfxDing();
     }
   }

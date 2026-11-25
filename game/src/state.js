@@ -1,18 +1,20 @@
 // State game: satu objek G yang dibawa ke mana-mana.
 // Fase: 'title' (layar judul), 'play', 'won', 'lost'.
 // Pesanan, gelombang, skor, streak, timer — semua di sini.
-import { MAX_TICKETS, SHIFT_SECONDS, STREAK_MAX, STREAK_STEP, WAVES, WIN_TARGET } from './config.js';
-import { INGREDIENTS, RECIPES } from './recipes.js';
-import { mulberry32, pick } from './random.js';
+import {
+  MAX_TICKETS, PATIENCE, SHIFT_SECONDS, SPAWN_EVERY, STAR_MARKS,
+  WAVE_NAMES, WAVE_TARGETS, WIN_TARGET, waveFor,
+} from './config.js';
+import { RECIPES } from './recipes.js';
+import { makeRng, pick } from './random.js';
 import { makeCustomer } from './customers.js';
 
 export function createGame(seed) {
-  const rng = mulberry32(seed);
-  const G = {
+  return {
     seed,
-    rng,
+    rng: makeRng(seed),
     phase: 'title',
-    time: 0, // detik sejak shift mulai
+    time: 0,
     timeLeft: SHIFT_SECONDS,
     revenue: 0,
     served: 0,
@@ -20,60 +22,40 @@ export function createGame(seed) {
     lost: 0,
     streak: 0,
     bestStreak: 0,
-    waveIndex: 0,
+    wave: 1,
     spawnTimer: 2.5,
     ticketSeq: 0,
     tickets: [],
-    chef: { x: 640, targetX: 640, dir: 1, walk: 0, moving: false, carrying: null, action: null, actionT: 0 },
-    wok: { slots: [null, null] }, // {ing, t, state:'cooking'|'done'|'burnt'}
-    board: { ing: null, progress: 0, chopping: false },
-    plates: [{ items: [] }, { items: [] }],
-    pass: { glow: 0, flash: 0 },
-    trash: { flash: 0 },
+    chef: { x: 640, targetX: 640, dir: 1, walk: 0, moving: false, hand: null, action: null },
+    wok: null, // {ing, t, state:'cooking'|'done'|'burnt'}
+    board: null, // {ing, t, state:'chopping'|'done'}
+    plate: [], // [{ing, state}] maks 3
+    passGlow: 0,
+    passFlash: 0,
+    trashFlash: 0,
     banner: null, // {text, sub, t, dur}
     floaters: [], // {x, y, text, color, t}
-    coins: [], // partikel koin terbang {x,y,vx,vy,t}
-    steam: [], // partikel uap {x,y,t,life}
+    coins: [], // {x, y, vx, vy, t}
+    steam: [], // {x, y, t, life}
     paused: false,
     muted: false,
-    over: null, // {won, stars}
-    log: [],
+    over: null, // {won, stars, revenue, served, burnt, lost, bestStreak}
   };
-  return G;
-}
-
-export function waveFor(time) {
-  for (let i = 0; i < WAVES.length; i++) {
-    if (time < WAVES[i].until) return i;
-  }
-  return WAVES.length - 1;
-}
-
-export function waveOf(G) {
-  return WAVES[G.waveIndex];
-}
-
-export function streakMult(G) {
-  return Math.min(1 + STREAK_STEP * Math.max(0, G.streak - 1), STREAK_MAX);
 }
 
 export function spawnTicket(G) {
   if (G.tickets.length >= MAX_TICKETS) return false;
-  const wave = waveOf(G);
-  // Resep acak, hindari dua tiket sama berturut-turut bila memungkinkan.
   let recipe = pick(G.rng, RECIPES);
   const last = G.tickets[G.tickets.length - 1];
-  if (last && RECIPES.length > 1) {
-    let guard = 0;
-    while (recipe.id === last.recipe.id && guard++ < 8) recipe = pick(G.rng, RECIPES);
-  }
-  const id = ++G.ticketSeq;
+  let guard = 0;
+  while (last && recipe.id === last.recipe.id && guard++ < 8) recipe = pick(G.rng, RECIPES);
+  const patience = PATIENCE[G.wave - 1];
   G.tickets.push({
-    id,
+    id: ++G.ticketSeq,
     recipe,
-    patience: wave.patience,
-    maxPatience: wave.patience,
-    customer: makeCustomer(G.rng, id),
+    patience,
+    maxPatience: patience,
+    customer: makeCustomer(G.rng, G.ticketSeq),
     born: G.time,
   });
   return true;
@@ -89,26 +71,24 @@ export function startShift(G) {
   G.lost = 0;
   G.streak = 0;
   G.bestStreak = 0;
-  G.waveIndex = 0;
+  G.wave = 1;
   G.spawnTimer = 1.2;
   G.tickets = [];
-  G.wok.slots = [null, null];
-  G.board = { ing: null, progress: 0, chopping: false };
-  G.plates = [{ items: [] }, { items: [] }];
-  G.pass.glow = 0;
-  G.chef.carrying = null;
+  G.wok = null;
+  G.board = null;
+  G.plate = [];
+  G.passGlow = 0;
+  G.chef.hand = null;
+  G.chef.action = null;
   G.chef.x = 640;
   G.chef.targetX = 640;
   G.over = null;
   G.floaters = [];
   G.coins = [];
-  showBanner(G, 'GELOMBANG 1 — MULAI', 'Layani pelanggan, capai ' + formatTarget(WAVES[0].target));
+  G.steam = [];
+  showBanner(G, 'GELOMBANG 1 — MULAI', 'Layani pelanggan, capai Rp 45.000');
   spawnTicket(G);
   spawnTicket(G);
-}
-
-function formatTarget(n) {
-  return 'Rp ' + n.toLocaleString('id-ID');
 }
 
 export function showBanner(G, text, sub) {
@@ -119,24 +99,39 @@ export function addFloater(G, x, y, text, color) {
   G.floaters.push({ x, y, text, color: color || '#ffd166', t: 0 });
 }
 
+export function burstCoins(G, x, y, n) {
+  for (let i = 0; i < n; i++) {
+    G.coins.push({
+      x: x + (G.rng() - 0.5) * 140,
+      y,
+      vx: (G.rng() - 0.5) * 160,
+      vy: -140 - G.rng() * 120,
+      t: 0,
+    });
+  }
+}
+
 // Update waktu, gelombang, kesabaran tiket, dan akhir shift.
 export function updateClocks(G, dt) {
   if (G.phase !== 'play') return;
   G.time += dt;
   G.timeLeft = Math.max(0, SHIFT_SECONDS - G.time);
-  const wi = waveFor(G.time);
-  if (wi !== G.waveIndex) {
-    G.waveIndex = wi;
-    const w = WAVES[wi];
-    showBanner(G, 'GELOMBANG ' + (wi + 1) + ' — ' + w.name, 'Target ' + formatTarget(w.target) + ' · pesanan makin cepat!');
+  const w = waveFor(G.revenue);
+  if (w !== G.wave) {
+    G.wave = w;
+    showBanner(
+      G,
+      'GELOMBANG ' + w + ' — ' + WAVE_NAMES[w],
+      w < 3
+        ? 'Target Rp ' + WAVE_TARGETS[w - 1].toLocaleString('id-ID') + ' · pesanan makin cepat!'
+        : 'Target akhir Rp 150.000 — puncak keramaian!',
+    );
   }
-  // Spawn pesanan baru.
   G.spawnTimer -= dt;
   if (G.spawnTimer <= 0) {
     spawnTicket(G);
-    G.spawnTimer = waveOf(G).spawnEvery;
+    G.spawnTimer = SPAWN_EVERY[G.wave - 1];
   }
-  // Kesabaran tiket.
   for (let i = G.tickets.length - 1; i >= 0; i--) {
     const tk = G.tickets[i];
     tk.patience -= dt;
@@ -147,7 +142,6 @@ export function updateClocks(G, dt) {
       addFloater(G, 640, 310, 'Pelanggan pergi!', '#ff7a6e');
     }
   }
-  // Banner + floater + partikel menua.
   if (G.banner) {
     G.banner.t += dt;
     if (G.banner.t > G.banner.dur) G.banner = null;
@@ -170,10 +164,9 @@ export function updateClocks(G, dt) {
     s.y -= 26 * dt;
     if (s.t > s.life) G.steam.splice(i, 1);
   }
-  if (G.pass.glow > 0) G.pass.glow -= dt;
-  if (G.pass.flash > 0) G.pass.flash -= dt;
-  if (G.trash.flash > 0) G.trash.flash -= dt;
-  // Akhir shift.
+  if (G.passGlow > 0) G.passGlow -= dt;
+  if (G.passFlash > 0) G.passFlash -= dt;
+  if (G.trashFlash > 0) G.trashFlash -= dt;
   if (G.timeLeft <= 0) endShift(G);
 }
 
@@ -182,16 +175,17 @@ export function endShift(G) {
   let stars = 0;
   if (won) {
     stars = 1;
-    if (G.revenue >= 200000) stars = 2;
-    if (G.revenue >= 260000) stars = 3;
+    if (G.revenue >= STAR_MARKS[1]) stars = 2;
+    if (G.revenue >= STAR_MARKS[2]) stars = 3;
   }
   G.phase = won ? 'won' : 'lost';
   G.over = { won, stars, revenue: G.revenue, served: G.served, burnt: G.burnt, lost: G.lost, bestStreak: G.bestStreak };
 }
 
 // Label bahan yang dibawa koki (untuk indikator MEMBAWA).
-export function chefCarryLabel(G) {
-  const c = G.chef.carrying;
-  if (!c) return null;
-  return INGREDIENTS[c.ing].name + (c.state === 'burnt' ? ' (hangus!)' : '');
+export function carryLabel(G) {
+  const h = G.chef.hand;
+  if (!h) return null;
+  const names = { nasi: 'Nasi', mie: 'Mie', ayam: 'Ayam', telur: 'Telur', cabai: 'Cabai', sayur: 'Sayur' };
+  return names[h.ing] || h.ing;
 }

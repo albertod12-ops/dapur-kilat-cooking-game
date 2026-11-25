@@ -6,12 +6,12 @@
 // ?autopilot=1 (&seed=N) menjalankan autopilot headless sampai menang/kalah
 // lalu set window.__result — untuk verifikasi, bukan untuk pemain.
 import { H, W } from './config.js';
-import { createGame, endShift, startShift } from './state.js';
-import { updateChef, walkTo } from './chef.js';
-import { clickAt, interactNearest, runPendingAction, updateStations } from './stations.js';
-import { updateClocks } from './state.js';
+import { createGame, startShift } from './state.js';
+import { stepGame } from './sim.js';
+import { walkTo } from './chef.js';
+import { clickAt, interactNearest } from './stations.js';
 import { drawGame } from './render.js';
-import { ensureAudio, isMuted, toggleMute } from './audio.js';
+import { ensureAudio, toggleMute } from './audio.js';
 import { runAutopilot, stageShot } from './autopilot.js';
 
 const params = new URLSearchParams(window.location.search);
@@ -98,7 +98,7 @@ window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 function step(dt) {
   t += dt;
   if (G.phase !== 'play' || G.paused) return;
-  // Jalan keyboard: A/D atau panah.
+  // Jalan keyboard: A/D atau panah (membatalkan aksi pending).
   const left = keys.has('a') || keys.has('arrowleft');
   const right = keys.has('d') || keys.has('arrowright');
   if (left && !right) {
@@ -110,13 +110,7 @@ function step(dt) {
     walkTo(G, G.chef.x + 400 * dt);
     G.chef.targetX = Math.min(1210, G.chef.x + 400 * dt);
   }
-  updateChef(G, dt);
-  if (G.chef.action && Math.abs(G.chef.x - G.chef.targetX) <= 2) runPendingAction(G);
-  updateStations(G, dt);
-  updateClocks(G, dt);
-  if (G.phase === 'won' || G.phase === 'lost') {
-    // endShift sudah dipanggil di updateClocks.
-  }
+  stepGame(G, dt);
 }
 
 function frame(now) {
