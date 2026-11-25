@@ -1,154 +1,164 @@
-// Boot and the one loop: input is read every frame, the world advances in fixed 1/60 s
-// steps, and the renderer paints what is there. Screens: title, play, paused, game over.
+// Boot + satu loop: baca input tiap frame, majukan dunia dengan langkah
+// tetap 1/60 detik, lukis apa yang ada. Layar: judul, main, jeda, akhir.
 //
-// ?seed=N fixes the order pattern. ?shot=start|play|serve|end (with &seed=N) stages that
-// scene instead of running the loop, paints it twice and sets window.__shotReady.
-import { BEST_KEY, STEP } from './config.js';
-import { createRandom } from './random.js';
-import { createAudio } from './audio.js';
-import { createWorld, EVENT_BURNT, EVENT_LOST, EVENT_OVER } from './world.js';
-import { ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, ACTION_RESTART, createInput } from './input.js';
-import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
-import { stageShot } from './shots.js';
-
-const MAX_FRAME = 0.25;
+// ?seed=N mengunci keacakan. ?shot=start|play|serve|end (&seed=N) menyusun
+// adegan itu, melukisnya, lalu set window.__shotReady.
+// ?autopilot=1 (&seed=N) menjalankan autopilot headless sampai menang/kalah
+// lalu set window.__result — untuk verifikasi, bukan untuk pemain.
+import { H, W } from './config.js';
+import { createGame, endShift, startShift } from './state.js';
+import { updateChef, walkTo } from './chef.js';
+import { clickAt, interactNearest, runPendingAction, updateStations } from './stations.js';
+import { updateClocks } from './state.js';
+import { drawGame } from './render.js';
+import { ensureAudio, isMuted, toggleMute } from './audio.js';
+import { runAutopilot, stageShot } from './autopilot.js';
 
 const params = new URLSearchParams(window.location.search);
 const shot = params.get('shot');
 const seedParam = Number.parseInt(params.get('seed') ?? '', 10);
-const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() * 4294967296);
+const seed = Number.isInteger(seedParam) ? seedParam : 7;
+const autopilotMode = params.get('autopilot') === '1';
 
 const canvas = document.getElementById('game');
-const status = document.getElementById('status');
-const world = createWorld(createRandom(seed));
-const renderer = createRenderer(canvas);
-const audio = createAudio();
+const ctx = canvas.getContext('2d');
+canvas.width = W;
+canvas.height = H;
 
-function readBest() {
-  try {
-    return Number.parseInt(window.localStorage.getItem(BEST_KEY) ?? '0', 10) || 0;
-  } catch {
-    return 0;
+const G = createGame(seed);
+let t = 0;
+let last = performance.now();
+let acc = 0;
+const STEP = 1 / 60;
+
+const keys = new Set();
+let mouseDown = false;
+
+function toGameCoords(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: ((e.clientX - r.left) / r.width) * W,
+    y: ((e.clientY - r.top) / r.height) * H,
+  };
+}
+
+function startOrRestart() {
+  ensureAudio();
+  if (G.phase === 'title' || G.phase === 'won' || G.phase === 'lost') {
+    startShift(G);
   }
 }
 
-function saveBest(value) {
-  try {
-    window.localStorage.setItem(BEST_KEY, String(value));
-  } catch {
-    // Storage can be off (private windows): the best score then lasts this visit only.
+canvas.addEventListener('mousedown', (e) => {
+  ensureAudio();
+  mouseDown = true;
+  const p = toGameCoords(e);
+  if (G.phase === 'title' || G.phase === 'won' || G.phase === 'lost') {
+    startOrRestart();
+    return;
+  }
+  clickAt(G, p.x, p.y);
+});
+canvas.addEventListener('mouseup', () => {
+  mouseDown = false;
+});
+canvas.addEventListener('mousemove', (e) => {
+  if (!mouseDown) return;
+  const p = toGameCoords(e);
+  walkTo(G, Math.max(70, Math.min(1210, p.x)));
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    startOrRestart();
+    return;
+  }
+  if (e.key === 'p' || e.key === 'P') {
+    if (G.phase === 'play') G.paused = !G.paused;
+    return;
+  }
+  if (e.key === 'm' || e.key === 'M') {
+    ensureAudio();
+    G.muted = toggleMute();
+    return;
+  }
+  if (e.key === 'e' || e.key === 'E') {
+    ensureAudio();
+    interactNearest(G);
+    return;
+  }
+  keys.add(e.key.toLowerCase());
+  if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', ' '].includes(e.key.toLowerCase())) {
+    e.preventDefault();
+  }
+});
+window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+
+// Satu langkah simulasi 1/60 detik.
+function step(dt) {
+  t += dt;
+  if (G.phase !== 'play' || G.paused) return;
+  // Jalan keyboard: A/D atau panah.
+  const left = keys.has('a') || keys.has('arrowleft');
+  const right = keys.has('d') || keys.has('arrowright');
+  if (left && !right) {
+    G.chef.action = null;
+    walkTo(G, G.chef.x - 400 * dt);
+    G.chef.targetX = Math.max(70, G.chef.x - 400 * dt);
+  } else if (right && !left) {
+    G.chef.action = null;
+    walkTo(G, G.chef.x + 400 * dt);
+    G.chef.targetX = Math.min(1210, G.chef.x + 400 * dt);
+  }
+  updateChef(G, dt);
+  if (G.chef.action && Math.abs(G.chef.x - G.chef.targetX) <= 2) runPendingAction(G);
+  updateStations(G, dt);
+  updateClocks(G, dt);
+  if (G.phase === 'won' || G.phase === 'lost') {
+    // endShift sudah dipanggil di updateClocks.
   }
 }
 
-function announce(text) {
-  status.textContent = text;
-}
-
-function runShot(name) {
-  const scene = stageShot(name, world);
-  let painted = 0;
-  function paint() {
-    renderer.draw(world.state, scene.screen, scene.best);
-    painted += 1;
-    if (painted < 2) requestAnimationFrame(paint);
-    else window.__shotReady = true;
+function frame(now) {
+  const dt = Math.min(0.25, (now - last) / 1000);
+  last = now;
+  acc += dt;
+  while (acc >= STEP) {
+    step(STEP);
+    acc -= STEP;
   }
-  requestAnimationFrame(paint);
-}
-
-function runGame() {
-  let screen = SCREEN_TITLE;
-  let best = readBest();
-  let accumulator = 0;
-  let last = performance.now();
-
-  function soundFor(result) {
-    switch (result) {
-      case 'pick': case 'place': audio.pick(); break;
-      case 'chop': audio.chop(); break;
-      case 'chopDone': audio.chop(); audio.ding(); break;
-      case 'sizzle': audio.sizzle(); break;
-      case 'perfect': audio.ding(); audio.serve(); break;
-      case 'serve': audio.serve(); break;
-      case 'trash': audio.click(); break;
-      case 'burnt': audio.burn(); break;
-      case 'bad': audio.bad(); break;
-      default: break;
-    }
-  }
-
-  function onAction(result) {
-    audio.unlock();
-    if (result === ACTION_MUTE) {
-      const muted = audio.toggleMute();
-      announce(muted ? 'Suara mati' : 'Suara hidup');
-      return;
-    }
-    if (result === ACTION_RESTART) {
-      world.reset();
-      screen = SCREEN_PLAY;
-      audio.startMusic();
-      announce('Shift baru dimulai');
-      return;
-    }
-    if (result === ACTION_PAUSE) {
-      if (screen === SCREEN_PLAY) screen = SCREEN_PAUSED;
-      else if (screen === SCREEN_PAUSED) screen = SCREEN_PLAY;
-      return;
-    }
-    if (result === ACTION_CONFIRM) {
-      if (screen === SCREEN_TITLE || screen === SCREEN_OVER) {
-        world.reset();
-        screen = SCREEN_PLAY;
-        audio.startMusic();
-        announce('Shift dimulai — layani pesanan secepatnya!');
-      }
-      return;
-    }
-    if (screen === SCREEN_TITLE || screen === SCREEN_OVER) {
-      // Any click on the title / game-over screen starts a shift.
-      if (result !== 'none' && result !== 'bad') {
-        world.reset();
-        screen = SCREEN_PLAY;
-        audio.startMusic();
-      }
-      return;
-    }
-    if (screen !== SCREEN_PLAY) return;
-    soundFor(result);
-  }
-
-  createInput(canvas, world, { onAction });
-
-  function frame(now) {
-    const dt = Math.min(MAX_FRAME, (now - last) / 1000);
-    last = now;
-    if (screen === SCREEN_PLAY) {
-      accumulator += dt;
-      while (accumulator >= STEP) {
-        accumulator -= STEP;
-        const events = world.step(STEP);
-        if (events & EVENT_BURNT) audio.burn();
-        if (events & EVENT_LOST) audio.bad();
-        if (events & EVENT_OVER) {
-          audio.stopMusic();
-          if (world.state.won) audio.win();
-          screen = SCREEN_OVER;
-          if (world.state.coins > best) {
-            best = world.state.coins;
-            saveBest(best);
-          }
-          announce(world.state.won
-            ? `Shift berhasil! ${world.state.coins} koin.`
-            : `Shift selesai. ${world.state.coins} koin.`);
-        }
-      }
-    }
-    renderer.draw(world.state, screen, best);
-    requestAnimationFrame(frame);
-  }
+  drawGame(ctx, G, t);
+  if (!window.__shotReady) window.__shotReady = true;
   requestAnimationFrame(frame);
 }
 
-if (shot) runShot(shot);
-else runGame();
+if (autopilotMode) {
+  // Verifikasi headless: main sampai selesai, laporkan hasil.
+  const result = runAutopilot(seed);
+  window.__result = result;
+  document.getElementById('status').textContent = 'AUTOPILOT ' + JSON.stringify(result);
+  // Lukis frame akhir untuk dilihat bila dibuka di browser.
+  const G2 = createGame(seed);
+  if (result.won) {
+    G2.phase = 'won';
+    G2.over = { won: true, stars: result.revenue >= 260000 ? 3 : result.revenue >= 200000 ? 2 : 1, revenue: result.revenue, served: result.served, burnt: result.burnt, lost: result.lost, bestStreak: result.bestStreak };
+    G2.revenue = result.revenue;
+    G2.served = result.served;
+  } else {
+    G2.phase = 'lost';
+    G2.over = { won: false, stars: 0, revenue: result.revenue, served: result.served, burnt: result.burnt, lost: result.lost, bestStreak: result.bestStreak };
+    G2.revenue = result.revenue;
+    G2.served = result.served;
+  }
+  drawGame(ctx, G2, 0);
+  window.__shotReady = true;
+} else if (shot) {
+  stageShot(G, shot);
+  drawGame(ctx, G, 0.6);
+  drawGame(ctx, G, 0.6);
+  window.__shotReady = true;
+  window.__game = G;
+} else {
+  window.__game = G;
+  requestAnimationFrame(frame);
+}

@@ -1,105 +1,61 @@
-// Dapur Kilat — tuning, ingredients and the menu.
-// One file, one job: every number and name the rest of the game reads.
-export const STEP = 1 / 60;
-export const VIEW = { width: 1280, height: 720 };
-export const SHIFT_SECONDS = 150;
-export const TARGET_COINS = 120;
-export const MAX_TICKETS = 4;
-export const BEST_KEY = 'dapur-kilat-best-coins';
+// Pasar Malam: Warung Saji — tuning + layout. Canvas 1280x720, side view warung.
+// Semua angka di satu tempat supaya balance bisa diubah tanpa menyentuh logika.
+export const W = 1280;
+export const H = 720;
 
-/** Ingredient kinds. `prep` says what the ingredient needs before it can be plated. */
-export const INGREDIENTS = {
-  bunBottom: { name: 'Roti Bawah', short: 'Roti', color: '#e8a54b', prep: 'none', key: '1' },
-  bunTop: { name: 'Roti Atas', short: 'Roti', color: '#e8a54b', prep: 'none', key: '2' },
-  pattyRaw: { name: 'Daging Mentah', short: 'Daging', color: '#b0563a', prep: 'cook', key: '3' },
-  patty: { name: 'Daging Panggang', short: 'Daging', color: '#7a3b22', prep: 'none', key: null },
-  lettuceRaw: { name: 'Selada', short: 'Selada', color: '#7bc043', prep: 'chop', key: '4' },
-  lettuce: { name: 'Selada Potong', short: 'Selada', color: '#8ed152', prep: 'none', key: null },
-  tomatoRaw: { name: 'Tomat', short: 'Tomat', color: '#e23b2e', prep: 'chop', key: '5' },
-  tomato: { name: 'Tomat Potong', short: 'Tomat', color: '#ff5a45', prep: 'none', key: null },
-  cheese: { name: 'Keju', short: 'Keju', color: '#ffcf3d', prep: 'none', key: '6' },
-  eggRaw: { name: 'Telur Mentah', short: 'Telur', color: '#f7ead0', prep: 'cook', key: '7' },
-  egg: { name: 'Telur Goreng', short: 'Telur', color: '#ffd94d', prep: 'none', key: null },
-  cucumberRaw: { name: 'Timun', short: 'Timun', color: '#4da96b', prep: 'chop', key: '8' },
-  cucumber: { name: 'Timun Potong', short: 'Timun', color: '#6cc487', prep: 'none', key: null },
-  sauce: { name: 'Saus Kilat', short: 'Saus', color: '#ff8c42', prep: 'none', key: '9' },
-  riceRaw: { name: 'Nasi Mentah', short: 'Nasi', color: '#f2ead8', prep: 'cook', key: '0' },
-  rice: { name: 'Nasi Goreng', short: 'Nasi', color: '#e8b64c', prep: 'none', key: null },
-  chickenRaw: { name: 'Ayam Mentah', short: 'Ayam', color: '#e8a0a0', prep: 'cook', key: null },
-  chicken: { name: 'Ayam Goreng', short: 'Ayam', color: '#c97b2d', prep: 'none', key: null },
-  pastaRaw: { name: 'Pasta Mentah', short: 'Pasta', color: '#f0d48a', prep: 'cook', key: null },
-  pasta: { name: 'Pasta Matang', short: 'Pasta', color: '#f7c948', prep: 'none', key: null },
+// Durasi satu shift (detik) dan target pendapatan per gelombang (rupiah).
+export const SHIFT_SECONDS = 150;
+export const WIN_TARGET = 150000;
+export const STAR_CUTS = [150000, 200000, 260000];
+
+export const WAVES = [
+  { name: 'MULAI', until: 50, target: 45000, spawnEvery: 9, patience: 54 },
+  { name: 'JAM RAMAI', until: 100, target: 90000, spawnEvery: 7, patience: 46 },
+  { name: 'PUNCAK', until: 150, target: 150000, spawnEvery: 5.5, patience: 38 },
+];
+
+// Koki jalan 430 px/detik — cukup cepat untuk routing, cukup lambat untuk terasa.
+export const CHEF_SPEED = 430;
+export const CHEF_Y = 604;
+
+// Wok: masak per bahan (detik), lalu dibiarkan BURN_AFTER detik jadi hangus.
+export const BURN_AFTER = 6;
+export const CHOP_SECONDS = 2.5;
+
+// Pesanan.
+export const MAX_TICKETS = 4;
+export const STREAK_STEP = 0.25;
+export const STREAK_MAX = 2;
+
+// Layout (px). Tiket di atas, bin bahan di bawahnya, stasiun di tengah,
+// koki berjalan di jalur bawah.
+export const LAYOUT = {
+  topBar: { x: 0, y: 0, w: 1280, h: 58 },
+  tickets: { x: 16, y: 68, w: 302, h: 118, gap: 12 },
+  bins: { x: 16, y: 200, w: 198, h: 82, gap: 12 },
+  wok: { x: 36, y: 316, w: 300, h: 210 },
+  board: { x: 372, y: 340, w: 240, h: 186 },
+  plates: { x: 648, y: 340, w: 260, h: 186 },
+  pass: { x: 944, y: 316, w: 240, h: 210 },
+  trash: { x: 1204, y: 452, w: 60, h: 74 },
+  helpBar: { x: 0, y: 668, w: 1280, h: 52 },
 };
 
-/** What the counter bins hold (click a bin, or press its key, to pick the ingredient up). */
-export const BINS = [
-  'bunBottom', 'bunTop', 'pattyRaw', 'lettuceRaw', 'tomatoRaw',
-  'cheese', 'eggRaw', 'cucumberRaw', 'sauce', 'riceRaw',
-  'chickenRaw', 'pastaRaw',
-];
-
-/** Chopping takes this many clicks; cooking takes this long, with a perfect window. */
-export const CHOP_CLICKS = 3;
-export const COOK_SECONDS = 6;
-export const COOK_PERFECT_FROM = 4.5;
-export const COOK_BURN_AT = 9;
-export const STOVE_SLOTS = 2;
-
-/** The menu: each dish is an ordered stack of plated ingredients. */
-export const RECIPES = [
-  {
-    id: 'burger', name: 'Burger Kilat', price: 14, time: 34,
-    needs: ['bunBottom', 'patty', 'lettuce', 'tomato', 'bunTop'],
-  },
-  {
-    id: 'cheeseburger', name: 'Burger Keju', price: 18, time: 38,
-    needs: ['bunBottom', 'patty', 'cheese', 'lettuce', 'bunTop'],
-  },
-  {
-    id: 'salad', name: 'Salad Segar', price: 10, time: 26,
-    needs: ['lettuce', 'tomato', 'cucumber', 'sauce'],
-  },
-  {
-    id: 'omelet', name: 'Omelet Kilat', price: 12, time: 30,
-    needs: ['egg', 'cheese', 'tomato'],
-  },
-  {
-    id: 'nasgor', name: 'Nasi Goreng', price: 16, time: 40,
-    needs: ['rice', 'egg', 'chicken', 'sauce'],
-  },
-  {
-    id: 'spaghetti', name: 'Spaghetti Kilat', price: 15, time: 36,
-    needs: ['pasta', 'sauce', 'cheese'],
-  },
-  {
-    id: 'mie', name: 'Mie Goreng', price: 17, time: 42,
-    needs: ['pasta', 'egg', 'chicken', 'sauce'],
-  },
-  {
-    id: 'geprek', name: 'Ayam Geprek', price: 19, time: 40,
-    needs: ['chicken', 'sauce', 'tomato', 'lettuce'],
-  },
-];
-
-export const CUSTOMERS = [
-  { name: 'Mbak Rani', color: '#e2703a' },
-  { name: 'Pak Dedi', color: '#3a6ea5' },
-  { name: 'Nona Sari', color: '#a53a7a' },
-  { name: 'Bang Joko', color: '#4a7c3a' },
-  { name: 'Kak Lilis', color: '#7a5ac8' },
-  { name: 'Om Budi', color: '#b8860b' },
-];
-
-/** Combo: serving within this many seconds of the last serve keeps the streak alive. */
-export const COMBO_WINDOW = 12;
-export const TIP_MAX = 8;
-/** The last 30 seconds are rush hour: tickets arrive twice as fast. */
-export const RUSH_SECONDS = 30;
-/** The chef: a visible cook who walks the floor in front of the counter. */
-export const CHEF_Y = 640; // feet on the floor, in front of the work counter
-export const CHEF_SPEED = 420; // px per second
-export const CHEF_MIN_X = 48;
-export const CHEF_MAX_X = 1232;
-
-/** Taking a pan off the stove inside the perfect window pays this bonus at once. */
-export const PERFECT_BONUS = 2;
+// Palet pasar malam: langit malam ungu-biru, lampu hangat, kayu, aksen teal.
+export const PALETTE = {
+  skyTop: '#171233',
+  skyMid: '#241a4d',
+  skyBottom: '#3a2060',
+  stallWood: '#7a4a22',
+  stallWoodDark: '#5d3718',
+  counterTop: '#a06a33',
+  counterFace: '#6b4220',
+  cream: '#fff3d6',
+  ink: '#241a12',
+  amber: '#ffb347',
+  ember: '#ff7a2f',
+  teal: '#2ec4b6',
+  red: '#e63946',
+  green: '#7dc383',
+  gold: '#ffd166',
+};
